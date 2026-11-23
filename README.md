@@ -30,6 +30,25 @@ npm run dev          # http://localhost:5173, proxies /api to the backend
 npm run build        # output in frontend/dist, served by the backend when present
 ```
 
+## Export official pages as PDFs (for Bedrock Data Automation)
+
+```
+cd backend
+pip install -r requirements.txt
+playwright install chromium            # one time
+python -m scripts.export_pdfs --dry-run          # list pages and check robots.txt, no browser
+python -m scripts.export_pdfs                    # render every page (waits 10 s between pages)
+python -m scripts.export_pdfs --lang bangla      # only the Bangla pages
+python -m scripts.export_pdfs --only roaming-activation sim-replacement
+python -m scripts.export_pdfs --upload           # also copy to S3 (needs S3_BUCKET in config/.env)
+```
+
+- The page list is `backend/data/knowledge/sources.json`. Add or remove pages there.
+- Output: `backend/data/knowledge/pdf/english/<id>.pdf`, `.../bangla/<id>.pdf`, a `<id>.txt` with the exact page text, and `index.json` with the source URL, fetch date, status and checksum for every page.
+- Every PDF starts with a line giving the title, source URL and retrieval date.
+- The script honours `robots.txt`, keeps at least a 10-second gap between pages, and reports pages the site refuses (403 and similar) without retrying them.
+- On Linux servers, install a Bengali font (for example Noto Sans Bengali) before rendering, or Bangla text will not display.
+
 ## Twilio setup
 
 - Voice webhook (TwiML App and phone number): `POST {PUBLIC_BASE_URL}/api/twilio/voice`

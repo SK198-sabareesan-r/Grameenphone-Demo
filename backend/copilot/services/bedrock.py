@@ -3,10 +3,10 @@
 import asyncio
 import logging
 
-import boto3
 from botocore.config import Config
 
 from config.settings import Settings
+from copilot.utils.aws import aws_session
 from copilot.utils.helpers import extract_json
 
 log = logging.getLogger(__name__)
@@ -19,15 +19,7 @@ class BedrockClient:
 
     def _get_client(self):
         if self._client is None:
-            s = self._settings
-            creds: dict[str, str] = {}
-            if s.aws_access_key_id.get_secret_value():
-                creds["aws_access_key_id"] = s.aws_access_key_id.get_secret_value()
-                creds["aws_secret_access_key"] = s.aws_secret_access_key.get_secret_value()
-                if s.aws_session_token.get_secret_value():
-                    creds["aws_session_token"] = s.aws_session_token.get_secret_value()
-            session = boto3.Session(region_name=s.aws_region or None, **creds)
-            self._client = session.client(
+            self._client = aws_session(self._settings).client(
                 "bedrock-runtime",
                 config=Config(read_timeout=25, retries={"max_attempts": 2}),
             )
@@ -53,7 +45,7 @@ class BedrockClient:
         temperature: float = 0.1,
     ) -> dict:
         if not model_id:
-            raise RuntimeError("Bedrock model id is not set in config/.env")
+            raise RuntimeError("Bedrock inference profile ARN is not set in config/.env")
         text = await asyncio.to_thread(
             self._converse, model_id, system, user, max_tokens, temperature
         )

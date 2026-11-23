@@ -4,9 +4,8 @@ import asyncio
 import json
 import logging
 
-import boto3
-
 from config.settings import Settings
+from copilot.utils.aws import aws_session
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class CallStorage:
         self._dir.mkdir(parents=True, exist_ok=True)
         self._bucket = settings.s3_bucket
         self._prefix = settings.s3_prefix.strip("/")
-        self._region = settings.aws_region or None
+        self._settings = settings
 
     async def save(self, record: dict) -> None:
         body = json.dumps(record, ensure_ascii=False, indent=2)
@@ -29,7 +28,7 @@ class CallStorage:
                 log.exception("S3 upload failed for call %s", record["call_sid"])
 
     def _upload(self, call_sid: str, body: str) -> None:
-        client = boto3.client("s3", region_name=self._region)
+        client = aws_session(self._settings).client("s3")
         client.put_object(
             Bucket=self._bucket,
             Key=f"{self._prefix}/{call_sid}.json",

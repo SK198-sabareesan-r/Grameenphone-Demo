@@ -11,7 +11,7 @@ NO_ANSWER = "I could not find this in the approved knowledge. Please escalate to
 
 class AskCopilot:
     def __init__(self, settings: Settings, bedrock: BedrockClient, kb: KnowledgeBase) -> None:
-        self._model = settings.bedrock_model_fast
+        self._model = settings.bedrock_inference_profile_arn_fast
         self._bedrock, self._kb = bedrock, kb
         self._template = read_text(settings.data_dir / "prompts" / "ask_copilot.md")
 

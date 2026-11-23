@@ -12,3 +12,5 @@ keywords: sim, lost sim, sim hariye gese, sim replacement, block sim, nid, finge
 - Online SIM delivery is available only in selected metropolitan city areas.
 - Skitto SIMs cannot be replaced through the GP online shop.
 - Compliance order for a lost SIM: verify identity, block the SIM, then explain replacement. Find the nearest GP Centre for in-person replacement (sample list in the demo).
+
+Not found on GP's public pages: a step-by-step procedure for blocking a lost SIM. Do not invent one. Public contact channels are 121, 158 and the live chat (see the customer contacts article). GP's Star programme page also says SIM replacement is free for Platinum Plus and Platinum customers, which differs slightly from the tier list above. Confirm the tier list on the live page before the demo.

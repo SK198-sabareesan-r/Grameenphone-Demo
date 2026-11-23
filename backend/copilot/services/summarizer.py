@@ -26,7 +26,7 @@ class CallSummarizer:
     def __init__(
         self, settings: Settings, bedrock: BedrockClient, hub: PanelHub, storage: CallStorage
     ) -> None:
-        self._model = settings.bedrock_model_summary
+        self._model = settings.bedrock_inference_profile_arn_summary
         self._bedrock, self._hub, self._storage = bedrock, hub, storage
         self._template = read_text(settings.data_dir / "prompts" / "summary.md")
 

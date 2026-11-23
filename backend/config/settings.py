@@ -35,8 +35,9 @@ class Settings(BaseSettings):
     aws_session_token: SecretStr = SecretStr("")
     s3_bucket: str = ""
     s3_prefix: str = "copilot/calls"
-    bedrock_model_fast: str = ""
-    bedrock_model_summary: str = ""
+    s3_knowledge_prefix: str = "knowledge/pdf"
+    bedrock_inference_profile_arn_fast: str = ""
+    bedrock_inference_profile_arn_summary: str = ""
 
     # Sarvam
     sarvam_api_key: SecretStr = SecretStr("")

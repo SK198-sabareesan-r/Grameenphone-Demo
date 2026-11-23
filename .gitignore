@@ -27,3 +27,6 @@ backend/data/runtime/
 # Misc
 *.log
 .DS_Store
+
+# Generated knowledge PDFs (re-create with python -m scripts.export_pdfs)
+backend/data/knowledge/pdf/

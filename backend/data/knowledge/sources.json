@@ -1,0 +1,411 @@
+{
+ "_note": "Official Grameenphone pages to render as PDFs. 'language' picks the output folder. Add or remove rows here, no code change needed. Pages on roaming.grameenphone.com are left out because that site's robots.txt disallows all automated access. The www.grameenphone.com roaming pages redirect to roaming.grameenphone.com and are skipped for the same reason.",
+ "pages": [
+  {
+   "id": "internet-packs-general",
+   "language": "english",
+   "category": "packs",
+   "title": "General information about internet packs",
+   "url": "https://www.grameenphone.com/general-information-about-internet-packs"
+  },
+  {
+   "id": "internet-packages",
+   "language": "english",
+   "category": "packs",
+   "title": "Internet packages",
+   "url": "https://www.grameenphone.com/personal/plans-offers/internet-packages"
+  },
+  {
+   "id": "bundle-packs",
+   "language": "english",
+   "category": "packs",
+   "title": "Bundle packs (data and minutes)",
+   "url": "https://www.grameenphone.com/personal/plans-offers/internet-packages/bundle-packs"
+  },
+  {
+   "id": "internet-pack-5gb",
+   "language": "english",
+   "category": "packs",
+   "title": "5 GB internet pack",
+   "url": "https://www.grameenphone.com/personal/plans-offers/offers/5gb-internet-pack"
+  },
+  {
+   "id": "campaign-faq",
+   "language": "english",
+   "category": "packs",
+   "title": "Campaign FAQ",
+   "url": "https://www.grameenphone.com/campaign-faq"
+  },
+  {
+   "id": "prepaid-postpaid-packages",
+   "language": "english",
+   "category": "packs",
+   "title": "Prepaid and postpaid packages",
+   "url": "https://www.grameenphone.com/personal/plans-offers/prepaid-postpaid-packages"
+  },
+  {
+   "id": "prime-overview",
+   "language": "english",
+   "category": "packs",
+   "title": "Prime postpaid",
+   "url": "https://www.grameenphone.com/personal/plans-offers/prepaid-postpaid-packages/prime"
+  },
+  {
+   "id": "prime-help-faq",
+   "language": "english",
+   "category": "packs",
+   "title": "Prime help and FAQ",
+   "url": "https://www.grameenphone.com/personal/plans-offers/prepaid-postpaid-packages/prime/help-and-faq"
+  },
+  {
+   "id": "prime-price-plan",
+   "language": "english",
+   "category": "packs",
+   "title": "Prime price plan and credit limit",
+   "url": "https://www.grameenphone.com/personal/plans-offers/prepaid-postpaid-packages/prime/prime-price-plan-credit-limit"
+  },
+  {
+   "id": "nishchinto-plan",
+   "language": "english",
+   "category": "packs",
+   "title": "Nishchinto plan",
+   "url": "https://www.grameenphone.com/personal/plans-offers/prepaid-postpaid-packages/nishchinto"
+  },
+  {
+   "id": "one-number-plan",
+   "language": "english",
+   "category": "packs",
+   "title": "1 Number Plan",
+   "url": "https://www.grameenphone.com/personal/plans-offers/prepaid-postpaid-packages/1-number-plan"
+  },
+  {
+   "id": "tourist-sim",
+   "language": "english",
+   "category": "packs",
+   "title": "Tourist SIM",
+   "url": "https://www.grameenphone.com/personal/plans-offers/offers/tourist-sim"
+  },
+  {
+   "id": "roaming-bonus-packs",
+   "language": "english",
+   "category": "roaming",
+   "title": "Bonus on roaming packs",
+   "url": "https://www.grameenphone.com/personal/plans-offers/offers/bonus-roaming-packs"
+  },
+  {
+   "id": "sim-replacement",
+   "language": "english",
+   "category": "sim",
+   "title": "SIM replacement",
+   "url": "https://www.grameenphone.com/shop/sim-replacement"
+  },
+  {
+   "id": "sim-services",
+   "language": "english",
+   "category": "sim",
+   "title": "SIM services",
+   "url": "https://www.grameenphone.com/shop/sim-services"
+  },
+  {
+   "id": "sim-ownership-transfer",
+   "language": "english",
+   "category": "sim",
+   "title": "SIM ownership transfer",
+   "url": "https://www.grameenphone.com/shop/sim-ownership-transfer"
+  },
+  {
+   "id": "number-portability",
+   "language": "english",
+   "category": "sim",
+   "title": "Mobile number portability",
+   "url": "https://www.grameenphone.com/shop/mobile-number-portability"
+  },
+  {
+   "id": "esim",
+   "language": "english",
+   "category": "sim",
+   "title": "eSIM",
+   "url": "https://www.grameenphone.com/esim"
+  },
+  {
+   "id": "store-locator",
+   "language": "english",
+   "category": "sim",
+   "title": "GP Centres and store locator",
+   "url": "https://www.grameenphone.com/personal/customer-service/store-locator"
+  },
+  {
+   "id": "postpaid-bill-payment",
+   "language": "english",
+   "category": "bill",
+   "title": "Postpaid bill payment",
+   "url": "https://www.grameenphone.com/personal/services/vas-others/postpaid-bill-payment"
+  },
+  {
+   "id": "ebill",
+   "language": "english",
+   "category": "bill",
+   "title": "eBill",
+   "url": "https://www.grameenphone.com/personal/services/vas-others/ebill"
+  },
+  {
+   "id": "balance-transfer",
+   "language": "english",
+   "category": "bill",
+   "title": "Balance transfer",
+   "url": "https://www.grameenphone.com/personal/services/vas-others/balance-transfer"
+  },
+  {
+   "id": "private-recharge",
+   "language": "english",
+   "category": "bill",
+   "title": "Private recharge",
+   "url": "https://www.grameenphone.com/personal/services/vas-others/private-recharge"
+  },
+  {
+   "id": "recharge-terms",
+   "language": "english",
+   "category": "bill",
+   "title": "Recharge terms and conditions",
+   "url": "https://www.grameenphone.com/terms-and-conditions-for-gp-recharge"
+  },
+  {
+   "id": "online-recharge",
+   "language": "english",
+   "category": "bill",
+   "title": "Online recharge and top-up",
+   "url": "https://www.grameenphone.com/online-rechargetop"
+  },
+  {
+   "id": "gpay-airtime-recharge",
+   "language": "english",
+   "category": "bill",
+   "title": "GPay mobile recharge",
+   "url": "https://www.grameenphone.com/personal/services/financial-services/gpay/airtime-recharge"
+  },
+  {
+   "id": "vas-overview",
+   "language": "english",
+   "category": "vas",
+   "title": "VAS and others",
+   "url": "https://www.grameenphone.com/personal/services/vas-others"
+  },
+  {
+   "id": "vas-news-service",
+   "language": "english",
+   "category": "vas",
+   "title": "News service",
+   "url": "https://www.grameenphone.com/personal/services/vas/news-service"
+  },
+  {
+   "id": "vas-missed-call-alert",
+   "language": "english",
+   "category": "vas",
+   "title": "Missed call alert",
+   "url": "https://www.grameenphone.com/personal/services/vas/missed-call-alert"
+  },
+  {
+   "id": "vas-call-block",
+   "language": "english",
+   "category": "vas",
+   "title": "Call block",
+   "url": "https://www.grameenphone.com/personal/services/vas/call-block"
+  },
+  {
+   "id": "vas-study-line",
+   "language": "english",
+   "category": "vas",
+   "title": "Study line",
+   "url": "https://www.grameenphone.com/personal/services/vas/study-line"
+  },
+  {
+   "id": "vas-islamic-service",
+   "language": "english",
+   "category": "vas",
+   "title": "Islamic service",
+   "url": "https://www.grameenphone.com/personal/services/vas/islamic-service"
+  },
+  {
+   "id": "isd-tariff",
+   "language": "english",
+   "category": "vas",
+   "title": "ISD tariff",
+   "url": "https://www.grameenphone.com/personal/services/vas/isd-tariff"
+  },
+  {
+   "id": "useful-information",
+   "language": "english",
+   "category": "help",
+   "title": "Useful information",
+   "url": "https://www.grameenphone.com/useful-information"
+  },
+  {
+   "id": "handset-settings",
+   "language": "english",
+   "category": "help",
+   "title": "Handset settings",
+   "url": "https://www.grameenphone.com/personal/services/vas-others/handset-settings"
+  },
+  {
+   "id": "mygp-app",
+   "language": "english",
+   "category": "help",
+   "title": "MyGP app",
+   "url": "https://www.grameenphone.com/personal/services/digital-services/mygp-app"
+  },
+  {
+   "id": "mygp-self-service",
+   "language": "english",
+   "category": "help",
+   "title": "App mobile self-service",
+   "url": "https://www.grameenphone.com/personal/digital-services/other-services/gp-app-mobile-self-service"
+  },
+  {
+   "id": "customer-service",
+   "language": "english",
+   "category": "help",
+   "title": "Customer service",
+   "url": "https://www.grameenphone.com/personal/customer-service"
+  },
+  {
+   "id": "online-customer-service",
+   "language": "english",
+   "category": "help",
+   "title": "Online customer service",
+   "url": "https://www.grameenphone.com/personal/customer-service/online-customer-service"
+  },
+  {
+   "id": "useful-contacts",
+   "language": "english",
+   "category": "help",
+   "title": "Useful contacts",
+   "url": "https://www.grameenphone.com/personal/customer-service/useful-contacts"
+  },
+  {
+   "id": "notice-board",
+   "language": "english",
+   "category": "help",
+   "title": "Notice board",
+   "url": "https://www.grameenphone.com/useful-links/notice-board"
+  },
+  {
+   "id": "terms-of-use",
+   "language": "english",
+   "category": "policy",
+   "title": "Terms of use",
+   "url": "https://www.grameenphone.com/terms-use"
+  },
+  {
+   "id": "privacy-policy",
+   "language": "english",
+   "category": "policy",
+   "title": "Privacy policy",
+   "url": "https://www.grameenphone.com/privacy-policy"
+  },
+  {
+   "id": "internet-packages",
+   "language": "bangla",
+   "category": "packs",
+   "title": "ইন্টারনেট প্যাক",
+   "url": "https://www.grameenphone.com/bn/personal/plans-offers/internet-packages"
+  },
+  {
+   "id": "internet-packages-entertainment",
+   "language": "bangla",
+   "category": "packs",
+   "title": "ইন্টারনেট প্যাক: এন্টারটেইনমেন্ট",
+   "url": "https://www.grameenphone.com/bn/personal/plans-offers/internet-packages/entertainment"
+  },
+  {
+   "id": "prepaid-postpaid-packages",
+   "language": "bangla",
+   "category": "packs",
+   "title": "প্রিপেইড ও পোস্টপেইড প্যাকেজ",
+   "url": "https://www.grameenphone.com/bn/personal/plans-offers/prepaid-postpaid-packages"
+  },
+  {
+   "id": "prime-help-faq",
+   "language": "bangla",
+   "category": "packs",
+   "title": "প্রাইম সাহায্য ও প্রশ্নোত্তর",
+   "url": "https://www.grameenphone.com/bn/personal/plans-offers/prepaid-postpaid-packages/prime/help-and-faq"
+  },
+  {
+   "id": "postpaid-bill-payment",
+   "language": "bangla",
+   "category": "bill",
+   "title": "পোস্টপেইড বিল পেমেন্ট",
+   "url": "https://www.grameenphone.com/bn/personal/services/vas-others/postpaid-bill-payment"
+  },
+  {
+   "id": "ebill",
+   "language": "bangla",
+   "category": "bill",
+   "title": "ই-বিল",
+   "url": "https://www.grameenphone.com/bn/personal/services/vas-others/ebill"
+  },
+  {
+   "id": "balance-transfer",
+   "language": "bangla",
+   "category": "bill",
+   "title": "ব্যালেন্স ট্রান্সফার",
+   "url": "https://www.grameenphone.com/bn/personal/services/vas-others/balance-transfer"
+  },
+  {
+   "id": "vas-overview",
+   "language": "bangla",
+   "category": "vas",
+   "title": "ভ্যালু অ্যাডেড সার্ভিস",
+   "url": "https://www.grameenphone.com/bn/personal/services/vas-others"
+  },
+  {
+   "id": "mygp-app",
+   "language": "bangla",
+   "category": "help",
+   "title": "মাইজিপি অ্যাপ",
+   "url": "https://www.grameenphone.com/bn/personal/services/digital-services/mygp-app"
+  },
+  {
+   "id": "mygp-self-service",
+   "language": "bangla",
+   "category": "help",
+   "title": "অ্যাপ মোবাইল সেলফ-সার্ভিস",
+   "url": "https://www.grameenphone.com/bn/personal/digital-services/other-services/gp-app-mobile-self-service"
+  },
+  {
+   "id": "online-customer-service",
+   "language": "bangla",
+   "category": "help",
+   "title": "অনলাইন কাস্টমার সার্ভিস",
+   "url": "https://www.grameenphone.com/bn/personal/customer-service/online-customer-service"
+  },
+  {
+   "id": "useful-contacts",
+   "language": "bangla",
+   "category": "help",
+   "title": "প্রয়োজনীয় যোগাযোগ",
+   "url": "https://www.grameenphone.com/bn/personal/customer-service/useful-contacts"
+  },
+  {
+   "id": "store-locator",
+   "language": "bangla",
+   "category": "sim",
+   "title": "জিপি সেন্টার ও স্টোর লোকেটর",
+   "url": "https://www.grameenphone.com/bn/personal/customer-service/store-locator"
+  },
+  {
+   "id": "terms-of-use",
+   "language": "bangla",
+   "category": "policy",
+   "title": "ব্যবহারের শর্তাবলী",
+   "url": "https://www.grameenphone.com/bn/terms-use"
+  },
+  {
+   "id": "privacy-policy",
+   "language": "bangla",
+   "category": "policy",
+   "title": "গোপনীয়তা নীতি",
+   "url": "https://www.grameenphone.com/bn/privacy-policy"
+  }
+ ]
+}

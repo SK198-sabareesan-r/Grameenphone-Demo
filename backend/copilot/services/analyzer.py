@@ -20,7 +20,7 @@ ANGRY_TIP = "Acknowledge the repeated complaint, give a ticket number and a clea
 
 class TurnAnalyzer:
     def __init__(self, settings: Settings, bedrock: BedrockClient, nba: NbaCatalog, hub: PanelHub):
-        self._model = settings.bedrock_model_fast
+        self._model = settings.bedrock_inference_profile_arn_fast
         self._bedrock, self._nba, self._hub = bedrock, nba, hub
         self._template = read_text(settings.data_dir / "prompts" / "analyze_turn.md")
         self._keywords = load_json(settings.data_dir / "mock" / "mood_keywords.json")

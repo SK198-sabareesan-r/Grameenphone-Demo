@@ -14,3 +14,5 @@ keywords: internet pack, data pack, balance check, auto renew, cancel pack, inte
 - After the internet volume finishes and while validity remains, usage is charged at Tk 1.165 per MB (including VAT, SC and SD), up to Tk 5.825.
 - Unused data is carried forward if the customer buys the same pack within the active validity period, or if auto-renew succeeds.
 - Packs are not applicable for Skitto users.
+
+Conflict to resolve: this page gives a cap of Tk 5.825 after a pack ends. GP's recharge terms page and the 30 GB Tk 599 offer page give Tk 6.95 (including VAT, SD and SC). Check which one GP wants shown.

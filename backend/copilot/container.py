@@ -22,8 +22,8 @@ log = logging.getLogger(__name__)
 REQUIRED_SETTINGS = (
     "public_base_url",
     "aws_region",
-    "bedrock_model_fast",
-    "bedrock_model_summary",
+    "bedrock_inference_profile_arn_fast",
+    "bedrock_inference_profile_arn_summary",
     "sarvam_api_key",
     "twilio_account_sid",
     "twilio_auth_token",
