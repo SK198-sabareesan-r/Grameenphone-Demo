@@ -1,0 +1,22 @@
+// Every backend path in one place.
+export const API = {
+  health: "/api/health",
+  panelStream: "/api/panel/stream",
+  softphoneToken: "/api/softphone/token",
+  currentCall: "/api/calls/current",
+  endCall: "/api/calls/current/end",
+  transcript: "/api/transcript",
+  analyze: "/api/analyze",
+  mood: "/api/mood",
+  compliance: "/api/compliance",
+  suggestions: "/api/suggestions",
+  useSuggestion: (id) => `/api/suggestions/${encodeURIComponent(id)}/use`,
+  summary: "/api/summary",
+  ticketCategories: "/api/tickets/categories",
+  tickets: "/api/tickets",
+  ask: "/api/ask",
+  customers: "/api/customers",
+  activeCustomer: "/api/customers/active",
+  dashboard: "/api/dashboard",
+  resetData: "/api/data/reset",
+};

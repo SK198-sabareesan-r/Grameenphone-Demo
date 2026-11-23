@@ -1,0 +1,79 @@
+[
+  {
+    "id": "rahim",
+    "name": "Rahim Uddin",
+    "msisdn": "01XXXXXXXX1",
+    "type": "Prepaid",
+    "tier": "Standard",
+    "area": "Mirpur",
+    "balance_bdt": 120,
+    "pack": {"name": "25 GB, 30 days", "data_left_gb": 18, "valid_until": "05 Dec"},
+    "recent_recharges": [
+      {"amount_bdt": 200, "date": "20 Nov"},
+      {"amount_bdt": 100, "date": "10 Nov"}
+    ],
+    "open_tickets": [],
+    "usage_pattern": "Used up the pack before validity ended in each of the last 3 months."
+  },
+  {
+    "id": "nusrat",
+    "name": "Nusrat Jahan",
+    "msisdn": "01XXXXXXXX2",
+    "type": "Postpaid",
+    "tier": "Gold",
+    "area": "Dhanmondi",
+    "balance_bdt": 0,
+    "pack": {"name": "Postpaid 20 GB", "data_left_gb": 6, "valid_until": "30 Nov"},
+    "recent_recharges": [],
+    "open_tickets": [],
+    "bill": {"last_month_bdt": 500, "this_month_bdt": 850, "due_date": "07 Dec"},
+    "charges": [
+      {"item": "Extra internet use", "amount_bdt": 250},
+      {"item": "Value-added service: Cricket Alert (sample)", "amount_bdt": 100}
+    ],
+    "usage_pattern": "Did not knowingly activate any value-added service."
+  },
+  {
+    "id": "karim",
+    "name": "Karim Hossain",
+    "msisdn": "01XXXXXXXX3",
+    "type": "Prepaid",
+    "tier": "Standard",
+    "area": "Uttara",
+    "balance_bdt": 45,
+    "pack": {"name": "10 GB, 30 days", "data_left_gb": 2, "valid_until": "01 Dec"},
+    "recent_recharges": [{"amount_bdt": 100, "date": "18 Nov"}],
+    "open_tickets": [
+      {"id": "TKT-10101", "topic": "Slow internet", "age": "9 days"},
+      {"id": "TKT-10144", "topic": "Slow internet", "age": "5 days"},
+      {"id": "TKT-10190", "topic": "Slow internet", "age": "2 days"}
+    ],
+    "usage_pattern": "Three earlier complaints about the same issue."
+  },
+  {
+    "id": "sumon",
+    "name": "Sumon Ahmed",
+    "msisdn": "01XXXXXXXX4",
+    "type": "Postpaid",
+    "tier": "Platinum",
+    "area": "Gulshan",
+    "balance_bdt": 0,
+    "pack": {"name": "Postpaid 40 GB", "data_left_gb": 22, "valid_until": "30 Nov"},
+    "recent_recharges": [],
+    "open_tickets": [],
+    "usage_pattern": "Travelling to Malaysia next week. Roaming not activated."
+  },
+  {
+    "id": "mitu",
+    "name": "Mitu Akter",
+    "msisdn": "01XXXXXXXX5",
+    "type": "Prepaid",
+    "tier": "Standard",
+    "area": "Chattogram",
+    "balance_bdt": 80,
+    "pack": {"name": "8 GB, 7 days", "data_left_gb": 5, "valid_until": "29 Nov"},
+    "recent_recharges": [{"amount_bdt": 199, "date": "22 Nov"}],
+    "open_tickets": [],
+    "usage_pattern": "Reported a lost SIM."
+  }
+]

@@ -1,0 +1,118 @@
+/* Grameenphone theme. Colours and fonts taken from grameenphone.com. */
+:root {
+  --gp-blue: #0078cf;
+  --gp-blue-dark: #0066cc;
+  --gp-blue-deep: #00508f;
+  --gp-blue-soft: #e6eef4;
+  --gp-ink: #1a1a1a;
+  --gp-grey: #676767;
+  --gp-border: #cbd5e1;
+  --gp-surface: #f1f5f9;
+  --gp-white: #ffffff;
+  --gp-danger: #dc2626;
+  --gp-warn: #f1c40f;
+  --gp-ok: #07bc0c;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0, 40, 80, 0.12);
+  --font: "Source Sans 3", "Source Sans Pro", "Noto Sans Bengali", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--gp-ink);
+  background: var(--gp-surface);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gp-blue-deep);
+}
+
+a {
+  color: var(--gp-blue-dark);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--gp-border);
+  border-radius: 8px;
+  background: var(--gp-white);
+  color: var(--gp-ink);
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid var(--gp-blue);
+  outline-offset: 1px;
+}
+
+.btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--gp-blue);
+  color: var(--gp-white);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--gp-blue-dark);
+}
+
+.btn-danger {
+  background: var(--gp-danger);
+  color: var(--gp-white);
+}
+
+.btn-ghost {
+  background: var(--gp-white);
+  color: var(--gp-blue-dark);
+  border-color: var(--gp-blue);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--gp-blue-soft);
+}
+
+.muted {
+  color: var(--gp-grey);
+}
+
+.small {
+  font-size: 13px;
+}
+
+.empty {
+  color: var(--gp-grey);
+  font-style: italic;
+  margin: 4px 0;
+}
+
+.error {
+  color: var(--gp-danger);
+  margin: 6px 0 0;
+}

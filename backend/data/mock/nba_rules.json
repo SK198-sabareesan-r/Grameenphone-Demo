@@ -1,0 +1,42 @@
+[
+  {
+    "id": "nba-network-apology",
+    "title": "Apologise and give the fix time",
+    "text": "Apologise, tell the customer when the area network will be fixed, and offer a small goodwill data bonus if policy allows.",
+    "when": "Customer reports no or slow internet and a network notice exists for the customer's area.",
+    "source": "network-outage-goodwill",
+    "used_keywords": ["maintenance", "মেইনটেনেন্স", "মেইনটেন্যান্স", "ঠিক হবে", "thik hobe"]
+  },
+  {
+    "id": "nba-bigger-pack",
+    "title": "Offer the bigger 30-day pack (sample)",
+    "text": "The customer runs out of data before the pack ends every month. Offer the bigger 30-day pack.",
+    "when": "Customer's usage pattern shows the data runs out early, and the customer's main problem is being handled.",
+    "source": "bundle-packs",
+    "used_keywords": ["boro pack", "bigger pack", "বড় প্যাক", "বড় পেক", "বড় প্যাকটা"]
+  },
+  {
+    "id": "nba-vas-refund",
+    "title": "Deactivate the service and raise a refund",
+    "text": "Confirm with the customer, deactivate the value-added service, then raise a refund request.",
+    "when": "Customer disputes a charge they did not knowingly activate.",
+    "source": "vas-refund-policy",
+    "used_keywords": ["deactivate", "refund", "ডিঅ্যাক্টিভেট", "রিফান্ড", "ফেরত"]
+  },
+  {
+    "id": "nba-roaming-pack",
+    "title": "Suggest a roaming pack",
+    "text": "Explain how to activate roaming in MyGP and suggest a roaming pack that fits the trip.",
+    "when": "Customer mentions travelling abroad.",
+    "source": "roaming-basics",
+    "used_keywords": ["roaming pack", "রোমিং প্যাক"]
+  },
+  {
+    "id": "nba-sim-block",
+    "title": "Verify identity, then block the SIM",
+    "text": "Verify identity and block the SIM first. Then explain the documents needed for replacement.",
+    "when": "Customer says the SIM is lost or stolen.",
+    "source": "sim-replacement",
+    "used_keywords": ["block", "ব্লক"]
+  }
+]

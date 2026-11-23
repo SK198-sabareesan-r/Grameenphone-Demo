@@ -1,0 +1,34 @@
+[
+  {
+    "id": "verify_identity",
+    "label": "Verify identity first",
+    "trigger": {
+      "speaker": "agent",
+      "keywords": ["details", "ডিটেইল", "ডিটেল", "account er", "অ্যাকাউন্টের", "একাউন্টের"]
+    },
+    "trigger_state": "red",
+    "satisfy": {
+      "speaker": "agent",
+      "keywords": ["last recharge", "recharge koto", "লাস্ট রিচার্জ", "রিচার্জ কত", "শেষ রিচার্জ"]
+    },
+    "satisfy_before_trigger": true,
+    "message_active": "Verify identity first (for example, ask for the last recharge amount).",
+    "message_done": "Identity checked."
+  },
+  {
+    "id": "read_price_validity",
+    "label": "Read price and validity",
+    "trigger": {
+      "speaker": "customer",
+      "keywords": ["chalu kore", "activate", "চালু করে", "একটিভেট", "অ্যাক্টিভেট"]
+    },
+    "trigger_state": "pending",
+    "satisfy": {
+      "speaker": "agent",
+      "keywords": ["price", "validity", "taka", "দাম", "মেয়াদ", "টাকা", "ভ্যালিডিটি"]
+    },
+    "satisfy_before_trigger": false,
+    "message_active": "Read the price and validity to the customer before activating.",
+    "message_done": "Price and validity read out."
+  }
+]

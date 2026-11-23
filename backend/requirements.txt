@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+websockets
+pydantic
+pydantic-settings
+python-multipart
+boto3
+twilio
+httpx
+pytest

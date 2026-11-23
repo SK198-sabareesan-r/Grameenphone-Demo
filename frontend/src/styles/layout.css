@@ -1,0 +1,135 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.gp-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 24px;
+  background: var(--gp-blue);
+  color: var(--gp-white);
+  box-shadow: var(--shadow);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand img {
+  border-radius: 8px;
+  background: var(--gp-white);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-text strong {
+  font-size: 20px;
+  letter-spacing: 0.3px;
+}
+
+.brand-text span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.tab {
+  font: inherit;
+  font-weight: 600;
+  color: var(--gp-white);
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 8px 14px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.tab.active {
+  border-bottom-color: var(--gp-white);
+  opacity: 1;
+}
+
+.header-status {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.page {
+  flex: 1;
+  padding: 18px 24px 70px;
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.live-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.col-main,
+.col-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: var(--gp-white);
+  border: 1px solid var(--gp-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.demo-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 12px;
+  background: var(--gp-white);
+  border: 1px solid var(--gp-border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.demo-controls summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--gp-blue-deep);
+}
+
+.demo-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+@media (max-width: 1000px) {
+  .live-grid {
+    grid-template-columns: 1fr;
+  }
+}

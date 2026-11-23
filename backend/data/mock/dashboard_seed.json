@@ -1,0 +1,20 @@
+{
+  "label": "Sample data for the demo",
+  "calls_with_copilot": 128,
+  "suggestions_shown": 412,
+  "suggestions_accepted": 301,
+  "avg_handle_time_saved_sec": 48,
+  "mood_trend": [
+    {"day": "Mon", "calm": 52, "frustrated": 18, "angry": 6},
+    {"day": "Tue", "calm": 58, "frustrated": 15, "angry": 5},
+    {"day": "Wed", "calm": 61, "frustrated": 14, "angry": 4},
+    {"day": "Thu", "calm": 66, "frustrated": 11, "angry": 3},
+    {"day": "Fri", "calm": 70, "frustrated": 9, "angry": 3}
+  ],
+  "top_suggestions": [
+    {"title": "Apologise and give the fix time", "count": 96},
+    {"title": "Read price and validity", "count": 88},
+    {"title": "Verify identity first", "count": 81},
+    {"title": "Offer the bigger 30-day pack", "count": 54}
+  ]
+}

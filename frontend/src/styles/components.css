@@ -1,0 +1,422 @@
+/* Pills and status dots */
+.pill {
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--gp-blue-soft);
+  color: var(--gp-blue-deep);
+}
+
+.gp-header .pill {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--gp-white);
+}
+
+.pill-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pill-warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pill-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gp-border);
+  display: inline-block;
+}
+
+.dot-ready,
+.dot-in-call {
+  background: var(--gp-ok);
+}
+
+.dot-ringing,
+.dot-connecting {
+  background: var(--gp-warn);
+}
+
+.dot-error {
+  background: var(--gp-danger);
+}
+
+/* Softphone */
+.softphone {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.softphone-info,
+.softphone-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Transcript */
+.transcript {
+  height: 340px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.line {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.line-who {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.line-customer {
+  align-self: flex-start;
+  background: var(--gp-surface);
+}
+
+.line-agent {
+  align-self: flex-end;
+  background: var(--gp-blue-soft);
+  border: 1px solid #bfd8ea;
+}
+
+.line-partial {
+  opacity: 0.55;
+}
+
+.typed-line {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.typed-line input {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Customer card */
+.customer-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gp-blue);
+  color: var(--gp-white);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--gp-surface);
+}
+
+.kv-label {
+  color: var(--gp-grey);
+  flex-shrink: 0;
+}
+
+.kv-value {
+  text-align: right;
+}
+
+.notice {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 4px solid var(--gp-warn);
+  background: #fffbeb;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mock-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--gp-grey);
+}
+
+/* Mood */
+.mood-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.mood-seg {
+  text-align: center;
+  padding: 6px 2px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: var(--gp-surface);
+  color: var(--gp-grey);
+}
+
+.mood-seg.on.mood-calm {
+  background: var(--gp-ok);
+  color: var(--gp-white);
+}
+
+.mood-seg.on.mood-neutral {
+  background: var(--gp-grey);
+  color: var(--gp-white);
+}
+
+.mood-seg.on.mood-frustrated {
+  background: #f59e0b;
+  color: var(--gp-white);
+}
+
+.mood-seg.on.mood-angry {
+  background: var(--gp-danger);
+  color: var(--gp-white);
+}
+
+.tip {
+  margin: 10px 0 4px;
+  padding: 8px 10px;
+  background: var(--gp-blue-soft);
+  border-radius: 8px;
+}
+
+/* Compliance */
+.compliance {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compliance-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--gp-border);
+}
+
+.compliance-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--gp-white);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.compliance-msg {
+  display: block;
+  font-size: 13px;
+}
+
+.state-red {
+  border-color: var(--gp-danger);
+  background: #fef2f2;
+}
+
+.state-red .compliance-icon {
+  background: var(--gp-danger);
+}
+
+.state-pending {
+  border-color: var(--gp-warn);
+  background: #fffbeb;
+}
+
+.state-pending .compliance-icon {
+  background: #f59e0b;
+}
+
+.state-green {
+  border-color: var(--gp-ok);
+  background: #f0fdf4;
+}
+
+.state-green .compliance-icon {
+  background: var(--gp-ok);
+}
+
+/* Suggestions */
+.suggestion {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid var(--gp-blue);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: var(--gp-blue-soft);
+}
+
+.suggestion p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.suggestion.used {
+  border-color: var(--gp-border);
+  background: var(--gp-surface);
+}
+
+/* Ask Copilot */
+.ask-form {
+  display: flex;
+  gap: 8px;
+}
+
+.ask-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ask-result {
+  margin-top: 10px;
+}
+
+.answer {
+  white-space: pre-wrap;
+  margin: 0 0 6px;
+}
+
+.sources a {
+  margin-right: 10px;
+}
+
+/* Summary form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.form .btn {
+  align-self: flex-start;
+}
+
+.ticket-result {
+  font-size: 18px;
+  margin: 0;
+}
+
+/* Dashboard */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-value {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--gp-blue);
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+}
+
+.trend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.trend-day {
+  width: 36px;
+  color: var(--gp-grey);
+}
+
+.trend-bar {
+  flex: 1;
+  display: flex;
+  height: 18px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--gp-surface);
+}
+
+.trend-bar .seg.mood-calm {
+  background: var(--gp-ok);
+}
+
+.trend-bar .seg.mood-frustrated {
+  background: #f59e0b;
+}
+
+.trend-bar .seg.mood-angry {
+  background: var(--gp-danger);
+}
+
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gp-surface);
+}
+
+@media (max-width: 1000px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
