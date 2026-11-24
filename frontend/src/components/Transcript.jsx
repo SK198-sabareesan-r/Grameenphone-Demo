@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { SPEAKER_LABEL, formatClock } from "../state/callLabels";
 
-const SPEAKER_LABEL = { agent: "Agent", customer: "Customer" };
-
-function Line({ speaker, text, partial }) {
+function Line({ speaker, text, partial, ts }) {
+  const time = partial ? "" : formatClock(ts);
   return (
     <div className={`line line-${speaker} ${partial ? "line-partial" : ""}`}>
-      <span className="line-who">{SPEAKER_LABEL[speaker]}</span>
+      <span className="line-who">
+        {SPEAKER_LABEL[speaker] ?? speaker}
+        {time && <span className="line-time">{time}</span>}
+      </span>
       <span className="line-text">{text}</span>
     </div>
   );
@@ -33,7 +36,8 @@ function TypedLine() {
     <form className="typed-line" onSubmit={submit}>
       <select value={speaker} onChange={(e) => setSpeaker(e.target.value)} aria-label="Speaker">
         <option value="customer">Customer</option>
-        <option value="agent">Agent</option>
+        <option value="human_agent">Agent</option>
+        <option value="ai_agent">AI agent</option>
       </select>
       <input
         value={text}
@@ -50,8 +54,10 @@ function TypedLine() {
 
 export default function Transcript({ turns, partials }) {
   const endRef = useRef(null);
-  useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [turns, partials]);
-  const empty = turns.length === 0 && !partials.customer && !partials.agent;
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [turns, partials]);
+  const empty = turns.length === 0 && !Object.values(partials).some(Boolean);
 
   return (
     <div className="card transcript-card">
@@ -59,7 +65,7 @@ export default function Transcript({ turns, partials }) {
       <div className="transcript" aria-live="polite">
         {empty && <p className="empty">Waiting for a call. The transcript appears as people speak.</p>}
         {turns.map((t) => (
-          <Line key={t.id} speaker={t.speaker} text={t.text} />
+          <Line key={t.id} speaker={t.speaker} text={t.text} ts={t.ts} />
         ))}
         {Object.entries(partials).map(
           ([speaker, text]) => text && <Line key={`p-${speaker}`} speaker={speaker} text={text} partial />

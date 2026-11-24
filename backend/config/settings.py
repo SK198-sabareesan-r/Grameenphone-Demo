@@ -24,9 +24,25 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     log_level: str = "INFO"
-    public_base_url: str = ""
     # Only needed when the frontend is served from a different origin than the backend.
     cors_origins: str = ""
+    # FastAPI /docs and /openapi.json. Off by default: they would be reachable without login.
+    copilot_api_docs_enabled: bool = False
+
+    # Authentication (see copilot/services/auth.py)
+    # HMAC key for session tokens. Required: login is refused while it is empty.
+    copilot_session_secret: SecretStr = SecretStr("")
+    # Local users file (scrypt password hashes). Empty = config/users.json.
+    copilot_users_file: str = ""
+    copilot_session_ttl_minutes: int = 480
+    copilot_ws_ticket_ttl_s: int = 60
+    # Customer picker and data reset in the panel. Off unless explicitly enabled.
+    demo_controls_enabled: bool = False
+
+    # Shared secret for internal service-to-service routes (/api/v1/internal/*). The voice agent sends
+    # it in the X-Internal-Token header (same variable name as in the voice agent's config).
+    # Empty = those routes answer 503 (fail closed).
+    internal_api_token: SecretStr = SecretStr("")
 
     # AWS
     aws_region: str = ""
@@ -68,16 +84,6 @@ class Settings(BaseSettings):
     sarvam_tts_speaker_agent: str = ""
     sarvam_tts_speaker_customer: str = ""
 
-    # Twilio
-    twilio_account_sid: str = ""
-    twilio_auth_token: SecretStr = SecretStr("")
-    twilio_api_key_sid: str = ""
-    twilio_api_key_secret: SecretStr = SecretStr("")
-    twilio_twiml_app_sid: str = ""
-    twilio_agent_identity: str = "agent"
-    twilio_record_calls: bool = True
-    twilio_validate_signature: bool = False
-
     # Automatic lookup for each customer sentence
     assist_enabled: bool = True
     assist_timeout_s: float = 8.0
@@ -87,13 +93,29 @@ class Settings(BaseSettings):
     demo_phone_map: str = ""
     ticket_start_number: int = 10234
 
+    # Where call records and tickets are written. Empty = data/runtime (the default).
+    # Tests point this at a temporary folder so they never touch real runtime data.
+    copilot_runtime_dir: str = ""
+    # Where per-call conversation JSON files are written. Empty = data/conversations (git-ignored).
+    copilot_conversations_dir: str = ""
+
     @property
     def data_dir(self) -> Path:
         return BASE_DIR / "data"
 
     @property
+    def conversations_dir(self) -> Path:
+        path = (
+            Path(self.copilot_conversations_dir)
+            if self.copilot_conversations_dir
+            else self.data_dir / "conversations"
+        )
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
     def runtime_dir(self) -> Path:
-        path = self.data_dir / "runtime"
+        path = Path(self.copilot_runtime_dir) if self.copilot_runtime_dir else self.data_dir / "runtime"
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -103,9 +125,8 @@ class Settings(BaseSettings):
         return BASE_DIR.parent / "frontend" / "dist"
 
     @property
-    def public_stream_url(self) -> str:
-        base = self.public_base_url.rstrip("/")
-        return base.replace("https://", "wss://", 1).replace("http://", "ws://", 1) + "/api/twilio/stream"
+    def users_file(self) -> Path:
+        return Path(self.copilot_users_file) if self.copilot_users_file else CONFIG_DIR / "users.json"
 
     @property
     def cors_origin_list(self) -> list[str]:

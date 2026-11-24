@@ -32,6 +32,10 @@ class CallConversation:
     pending_reply: bool = False  # a customer utterance arrived while the greeting was still being prepared
     playing_since: float | None = None
     closed: bool = False
+    # A human agent has taken the call: the AI must not speak or answer (hand-off, M3). Reversible if the
+    # hand-off fails; `pending_notice` is then spoken once the AI stream is back.
+    suspended: bool = False
+    pending_notice: str | None = None
     interruptions: int = 0
     turns: int = 0
     _seen: deque = field(default_factory=lambda: deque(maxlen=MAX_SEEN_FINALS), repr=False)
@@ -61,7 +65,7 @@ class CallConversation:
         return {
             "call_id": self.call_id, "phase": self.phase.value, "greeting": self.greeting,
             "messages": len(self.messages), "turns": self.turns, "interruptions": self.interruptions,
-            "task_active": self.task_active,
+            "task_active": self.task_active, "suspended": self.suspended,
         }
 
 
@@ -105,6 +109,7 @@ class ConversationMetrics:
     barge_in_ignored_grace: int = 0
     tasks_cancelled: int = 0
     conversation_failures: int = 0
+    contact_details_blocked: int = 0  # model replies replaced because they read out a number or address
     llm_latency: _Latency = field(default_factory=_Latency)
     tts_latency: _Latency = field(default_factory=_Latency)
 

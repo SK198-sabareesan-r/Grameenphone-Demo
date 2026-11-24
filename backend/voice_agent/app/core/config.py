@@ -13,6 +13,14 @@ from pydantic import BaseModel, Field, SecretStr
 ENV_FILE = Path(__file__).resolve().parents[2] / "config" / ".env"
 
 
+class RoutingConfigError(ValueError):
+    """The call-routing settings contradict each other or hold an unknown value. Raised at startup, never mid-call."""
+
+
+ROUTING_MODES = ("ai_first",)  # every call is answered by the AI first; no other mode exists yet
+HANDOFF_MODES = ("disabled", "on_request", "on_request_or_unresolved")
+
+
 class Settings(BaseModel):
     """Typed settings. Secrets are wrapped in SecretStr so they never print in logs."""
 
@@ -112,11 +120,105 @@ class Settings(BaseModel):
     ai_barge_in_enabled: bool = True
     ai_barge_in_grace_ms: int = 500  # ignore speech-start this soon after assistant audio starts (echo/late VAD)
 
+    # --- Call routing (M3.3). AI-first: the AI answers every call; a human only on request or when unresolved. ---
+    # AI_AGENT_ENABLED is the same switch as AI_CONVERSATION_ENABLED (either name works; both set must agree).
+    call_routing_mode: str = "ai_first"
+    call_routing_mode_explicit: bool = False  # CALL_ROUTING_MODE was set in the environment: then contradictions are errors
+    ai_agent_auto_answer: bool = True  # the AI greets the caller by itself when the call connects
+    # disabled | on_request (only when the customer asks) | on_request_or_unresolved (also when the AI cannot resolve it)
+    human_handoff_mode: str = "on_request_or_unresolved"
+    ai_auto_handoff_on_unresolved: bool = True
+    ai_max_resolution_attempts: int = 2  # "still not working" reports before an unresolved call becomes eligible
+    ai_background_assist_enabled: bool = True  # keep transcribing both parties after the transfer (monitor stream)
+
     # Shared secret for our own protected routes (e.g. POST /api/vobiz/calls). Empty = routes disabled.
     internal_api_token: SecretStr = SecretStr("")
 
     public_base_url: str = ""
+
+    # --- Copilot forwarding (M3). Empty URL = forwarding off. Uses INTERNAL_API_TOKEN (above). ---
+    # Full URL of the Copilot route, e.g. http://localhost:8000/api/v1/internal/transcripts/events.
+    # Lifecycle events go to the sibling route .../calls/events (see copilot_calls_webhook_url).
     copilot_transcript_webhook_url: str = Field(default="")
+    copilot_forward_timeout_s: float = 5.0
+    copilot_forward_max_attempts: int = 6  # per non-partial event; partials get 2
+    copilot_forward_backoff_s: float = 0.5  # doubles after each failed attempt
+    copilot_forward_max_backoff_s: float = 8.0
+    copilot_forward_buffer_size: int = 1000  # events per call waiting to be sent
+    copilot_forward_drain_timeout_s: float = 5.0  # time given to unsent events when a call ends
+    # Who spoke on the monitored stream's outbound track after a transfer. "unknown" until verified on a
+    # live call; set to "human_agent" once confirmed (see README, human hand-off).
+    vobiz_outbound_track_speaker: str = "unknown"
+
+    # --- Human hand-off (M3). Off unless enabled AND a human agent phone is set. ---
+    human_handoff_enabled: bool = False
+    # E.164 number the call is transferred to. Several numbers, comma separated, ring together (up to 5) and the
+    # first to answer gets the call. Only masked forms are logged or stored.
+    human_agent_phone: str = ""
+    human_handoff_dial_timeout_s: int = 30  # how long the human agent's phone may ring
+    # Said to the customer before the transfer. Empty = no announcement (the AI just goes quiet).
+    human_handoff_announcement: str = "Please hold on. I am connecting you to a human agent."
+    human_handoff_announcement_timeout_s: float = 8.0  # do not keep the customer waiting longer than this for it
+    # Optional: customer says one of these (comma separated, lower case) and the AI hands off. Empty = off.
+    human_handoff_phrases: str = ""
+    # Hold audio (public .mp3/.wav URL) played to the customer on hold. Empty = no audio, state only.
+    hold_audio_url: str = ""
+    # Digits the human agent presses on their phone during the bridge. Vobiz reports them as DialDigitsMatch
+    # (B-leg). Real telephony events, never inferred from silence.
+    hold_dtmf: str = "*1"
+    resume_dtmf: str = "*2"
+
+    @property
+    def explicit_handoff_allowed(self) -> bool:
+        """A customer who asks for a person may be transferred."""
+        return self.human_handoff_enabled and self.human_handoff_mode in ("on_request", "on_request_or_unresolved")
+
+    @property
+    def auto_handoff_allowed(self) -> bool:
+        """An unresolved call may be transferred without the customer asking."""
+        return (
+            self.explicit_handoff_allowed
+            and self.human_handoff_mode == "on_request_or_unresolved"
+            and self.ai_auto_handoff_on_unresolved
+        )
+
+    def routing_problems(self) -> tuple[list[str], list[str]]:
+        """(errors, warnings) for the routing settings. Errors stop startup; warnings are logged. Messages name the
+        setting, never a phone number."""
+        errors: list[str] = []
+        warnings: list[str] = []
+        if self.call_routing_mode not in ROUTING_MODES:
+            errors.append(f"CALL_ROUTING_MODE must be one of {list(ROUTING_MODES)}, got {self.call_routing_mode!r}")
+        if self.human_handoff_mode not in HANDOFF_MODES:
+            errors.append(f"HUMAN_HANDOFF_MODE must be one of {list(HANDOFF_MODES)}, got {self.human_handoff_mode!r}")
+        if not 1 <= self.ai_max_resolution_attempts <= 5:
+            errors.append("AI_MAX_RESOLUTION_ATTEMPTS must be between 1 and 5")
+        if self.call_routing_mode == "ai_first":
+            if self.call_routing_mode_explicit and not self.ai_conversation_enabled:
+                errors.append("CALL_ROUTING_MODE=ai_first needs AI_AGENT_ENABLED=true: the AI must answer every call first")
+            if not self.ai_agent_auto_answer:
+                errors.append("CALL_ROUTING_MODE=ai_first needs AI_AGENT_AUTO_ANSWER=true: the AI greeting cannot be skipped")
+            if not self.ai_conversation_enabled:
+                warnings.append("AI agent is disabled: callers are connected to a silent stream, not to the AI")
+        if self.human_handoff_enabled and self.human_handoff_mode == "disabled":
+            warnings.append("HUMAN_HANDOFF_ENABLED=true but HUMAN_HANDOFF_MODE=disabled: no transfer will happen")
+        if self.ai_auto_handoff_on_unresolved and self.human_handoff_enabled and self.human_handoff_mode == "on_request":
+            warnings.append("AI_AUTO_HANDOFF_ON_UNRESOLVED=true is ignored because HUMAN_HANDOFF_MODE=on_request")
+        if self.human_handoff_enabled and not self.human_agent_phone.strip():
+            warnings.append("HUMAN_HANDOFF_ENABLED=true but HUMAN_AGENT_PHONE is empty: customers asking for a human hear that no transfer is possible")
+        if not self.ai_background_assist_enabled:
+            warnings.append("AI_BACKGROUND_ASSIST_ENABLED=false: after the transfer nothing is transcribed or analysed")
+        return errors, warnings
+
+    @property
+    def copilot_calls_webhook_url(self) -> str:
+        url = self.copilot_transcript_webhook_url.strip().rstrip("/")
+        suffix = "/transcripts/events"
+        return (url[: -len(suffix)] if url.endswith(suffix) else url) + "/calls/events"
+
+    @property
+    def handoff_phrase_list(self) -> list[str]:
+        return [p.strip().lower() for p in self.human_handoff_phrases.split(",") if p.strip()]
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -195,7 +297,14 @@ class Settings(BaseModel):
             vobiz_dev_capture_max_seconds=int(get("VOBIZ_DEV_CAPTURE_MAX_SECONDS", "10")),
             vobiz_dev_capture_dir=get("VOBIZ_DEV_CAPTURE_DIR"),
             vobiz_dev_capture_retention_hours=float(get("VOBIZ_DEV_CAPTURE_RETENTION_HOURS", "24")),
-            ai_conversation_enabled=get("AI_CONVERSATION_ENABLED", "false").lower() in ("1", "true", "yes"),
+            ai_conversation_enabled=_ai_enabled(env),
+            call_routing_mode=get("CALL_ROUTING_MODE", "ai_first").lower(),
+            call_routing_mode_explicit=bool(env.get("CALL_ROUTING_MODE")),
+            ai_agent_auto_answer=get("AI_AGENT_AUTO_ANSWER", "true").lower() not in ("0", "false", "no"),
+            human_handoff_mode=get("HUMAN_HANDOFF_MODE", "on_request_or_unresolved").lower(),
+            ai_auto_handoff_on_unresolved=get("AI_AUTO_HANDOFF_ON_UNRESOLVED", "true").lower() not in ("0", "false", "no"),
+            ai_max_resolution_attempts=int(get("AI_MAX_RESOLUTION_ATTEMPTS", "2")),
+            ai_background_assist_enabled=get("AI_BACKGROUND_ASSIST_ENABLED", "true").lower() not in ("0", "false", "no"),
             aws_region=get("AWS_REGION") or get("AWS_DEFAULT_REGION"),
             bedrock_inference_profile_arn=get("BEDROCK_INFERENCE_PROFILE_ARN"),
             bedrock_max_tokens=int(get("BEDROCK_MAX_TOKENS", "200")),
@@ -208,7 +317,32 @@ class Settings(BaseModel):
             internal_api_token=SecretStr(get("INTERNAL_API_TOKEN")),
             public_base_url=get("PUBLIC_BASE_URL").rstrip("/"),
             copilot_transcript_webhook_url=get("COPILOT_TRANSCRIPT_WEBHOOK_URL"),
+            copilot_forward_timeout_s=float(get("COPILOT_FORWARD_TIMEOUT_S", "5")),
+            copilot_forward_max_attempts=int(get("COPILOT_FORWARD_MAX_ATTEMPTS", "6")),
+            copilot_forward_backoff_s=float(get("COPILOT_FORWARD_BACKOFF_S", "0.5")),
+            copilot_forward_max_backoff_s=float(get("COPILOT_FORWARD_MAX_BACKOFF_S", "8")),
+            copilot_forward_buffer_size=int(get("COPILOT_FORWARD_BUFFER_SIZE", "1000")),
+            copilot_forward_drain_timeout_s=float(get("COPILOT_FORWARD_DRAIN_TIMEOUT_S", "5")),
+            vobiz_outbound_track_speaker=get("VOBIZ_OUTBOUND_TRACK_SPEAKER", "unknown").lower(),
+            human_handoff_enabled=get("HUMAN_HANDOFF_ENABLED", "false").lower() in ("1", "true", "yes"),
+            human_agent_phone=get("HUMAN_AGENT_PHONE"),
+            human_handoff_dial_timeout_s=int(get("HUMAN_HANDOFF_DIAL_TIMEOUT_S", "30")),
+            human_handoff_announcement=env.get("HUMAN_HANDOFF_ANNOUNCEMENT", "Please hold on. I am connecting you to a human agent."),
+            human_handoff_announcement_timeout_s=float(get("HUMAN_HANDOFF_ANNOUNCEMENT_TIMEOUT_S", "8")),
+            human_handoff_phrases=get("HUMAN_HANDOFF_PHRASES"),
+            hold_audio_url=get("HOLD_AUDIO_URL"),
+            hold_dtmf=get("HOLD_DTMF", "*1"),
+            resume_dtmf=get("RESUME_DTMF", "*2"),
         )
+
+
+def _ai_enabled(env) -> bool:
+    """AI_AGENT_ENABLED and AI_CONVERSATION_ENABLED are one setting under two names. Both set and different is an error."""
+    parse = lambda raw: raw.strip().lower() in ("1", "true", "yes")  # noqa: E731
+    new, old = env.get("AI_AGENT_ENABLED"), env.get("AI_CONVERSATION_ENABLED")
+    if new and old and parse(new) != parse(old):
+        raise RoutingConfigError("AI_AGENT_ENABLED and AI_CONVERSATION_ENABLED are the same setting but disagree; set only one")
+    return parse(new or old or "false")
 
 
 @lru_cache

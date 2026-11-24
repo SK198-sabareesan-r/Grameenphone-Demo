@@ -1,9 +1,8 @@
-"""Health, browser softphone token and data reset."""
+"""Health (public) and demo data reset (demo controls only)."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
-from copilot.api.deps import get_container
-from copilot.services.twilio_helpers import make_access_token
+from copilot.api.deps import get_container, require_demo_controls
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -15,18 +14,7 @@ async def health(request: Request) -> dict:
     return {"status": "ok", "data": c.repo.status(), "knowledge": c.retriever.status()}
 
 
-@router.get("/softphone/token")
-async def softphone_token(request: Request) -> dict:
-    settings = get_container(request).settings
-    missing = settings.missing(
-        "twilio_account_sid", "twilio_api_key_sid", "twilio_api_key_secret", "twilio_twiml_app_sid"
-    )
-    if missing:
-        raise HTTPException(status_code=503, detail=f"Missing in config/.env: {', '.join(missing)}")
-    return {"token": make_access_token(settings), "identity": settings.twilio_agent_identity}
-
-
-@router.post("/data/reset")
+@router.post("/data/reset", dependencies=[Depends(require_demo_controls)])
 async def reset_data(request: Request) -> dict:
     """Clear the current call, the tickets the app created, and all saved calls. Seeded data is kept."""
     c = get_container(request)

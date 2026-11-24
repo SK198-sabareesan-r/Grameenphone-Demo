@@ -9,8 +9,10 @@ from copilot.services.analyzer import TurnAnalyzer
 from copilot.services.areas import NetworkAreas
 from copilot.services.ask import AskCopilot
 from copilot.services.assist import LiveAssist
+from copilot.services.auth import AuthService
 from copilot.services.bedrock import BedrockClient
 from copilot.services.compliance import ComplianceEngine
+from copilot.services.conversation_store import ConversationStore
 from copilot.services.dashboard import DashboardService
 from copilot.services.hub import PanelHub
 from copilot.services.identity import IdentityService
@@ -25,15 +27,11 @@ from copilot.services.tickets import TicketService
 
 log = logging.getLogger(__name__)
 REQUIRED_SETTINGS = (
-    "public_base_url",
+    "copilot_session_secret",
     "aws_region",
     "bedrock_inference_profile_arn_fast",
     "bedrock_inference_profile_arn_summary",
-    "sarvam_api_key",
-    "twilio_account_sid",
-    "twilio_auth_token",
-    "twilio_api_key_sid",
-    "twilio_api_key_secret",
+    "internal_api_token",  # voice-agent events (M3) are refused with 503 without it
 )
 
 
@@ -57,15 +55,19 @@ class Container:
     tickets: TicketService
     storage: CallStorage
     dashboard: DashboardService
+    auth: AuthService
+    conversations: ConversationStore
 
 
-def build_container(settings: Settings) -> Container:
+def build_container(settings: Settings, *, bedrock: BedrockClient | None = None) -> Container:
+    """Build every service. `bedrock` lets tests inject a fake client; None builds the real one."""
     missing = settings.missing(*REQUIRED_SETTINGS)
     if missing:
         log.warning("config/.env is missing: %s. Related features will not work.", ", ".join(missing))
     data = settings.data_dir
     repo = build_repo(settings)
-    hub, bedrock = PanelHub(), BedrockClient(settings)
+    hub = PanelHub()
+    bedrock = bedrock or BedrockClient(settings)  # tests inject a fake client
     storage = CallStorage(settings, repo)
     knowledge = KnowledgeBase(data / "knowledge" / "articles")
     retriever = KnowledgeRetriever(settings, bedrock, knowledge)
@@ -90,4 +92,6 @@ def build_container(settings: Settings) -> Container:
         tickets=TicketService(settings, repo),
         storage=storage,
         dashboard=DashboardService(settings, storage),
+        auth=AuthService(settings),
+        conversations=ConversationStore(settings.conversations_dir),
     )

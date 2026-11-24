@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "call_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7",
+  "session_id": "sess-5401fd2e-6344-40df-a22c-c8ffea7a92e7",
+  "customer_id": "rahim",
+  "events": [
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t1",
+      "sequence_number": 1,
+      "speaker": "customer",
+      "speaker_basis": "primary_stream_inbound_track",
+      "transcript_type": "partial",
+      "text": "I need help",
+      "timestamp": "2026-11-24T10:30:00.000Z",
+      "call_status": "in_progress",
+      "agent_mode": "ai_agent",
+      "language": null
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t2",
+      "sequence_number": 2,
+      "speaker": "customer",
+      "speaker_basis": "primary_stream_inbound_track",
+      "transcript_type": "final",
+      "text": "I need help with my mobile recharge.",
+      "timestamp": "2026-11-24T10:30:00.000Z",
+      "call_status": "in_progress",
+      "agent_mode": "ai_agent",
+      "language": null
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t3",
+      "sequence_number": 3,
+      "speaker": "ai_agent",
+      "speaker_basis": "ai_agent_reply",
+      "transcript_type": "final",
+      "text": "I can help with that. Which pack did you buy?",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "call_status": "in_progress",
+      "agent_mode": "ai_agent",
+      "language": null
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t4",
+      "sequence_number": 4,
+      "speaker": "customer",
+      "speaker_basis": "primary_stream_inbound_track",
+      "transcript_type": "final",
+      "text": "I want a refund, let me talk to a person.",
+      "timestamp": "2026-11-24T10:30:00.000Z",
+      "call_status": "in_progress",
+      "agent_mode": "ai_agent",
+      "language": null
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t5",
+      "sequence_number": 5,
+      "speaker": "human_agent",
+      "speaker_basis": "monitor_outbound_track_configured",
+      "transcript_type": "final",
+      "text": "Hello, this is Tania from Grameenphone.",
+      "timestamp": "2026-11-24T10:30:00.000Z",
+      "call_status": "with_human",
+      "agent_mode": "human_agent",
+      "language": null
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t6",
+      "sequence_number": 6,
+      "speaker": "customer",
+      "speaker_basis": "monitor_inbound_track",
+      "transcript_type": "partial",
+      "text": "Hi, about my",
+      "timestamp": "2026-11-24T10:30:00.000Z",
+      "call_status": "with_human",
+      "agent_mode": "human_agent",
+      "language": null
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t7",
+      "sequence_number": 7,
+      "speaker": "customer",
+      "speaker_basis": "monitor_inbound_track",
+      "transcript_type": "final",
+      "text": "Hi, about my refund.",
+      "timestamp": "2026-11-24T10:30:00.000Z",
+      "call_status": "with_human",
+      "agent_mode": "human_agent",
+      "language": null
+    }
+  ]
+}

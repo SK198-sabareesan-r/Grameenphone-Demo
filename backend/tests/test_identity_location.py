@@ -185,25 +185,7 @@ def test_unknown_location_is_rejected():
     assert session.current_location is None
 
 
-# ---- through the real API (local files only, no AWS, no model calls) ----
-
-@pytest.fixture
-def client(monkeypatch, tmp_path):
-    from config import settings as settings_module
-
-    monkeypatch.setenv("DATA_BACKEND", "files")  # never reach DynamoDB from a test
-    monkeypatch.setattr(settings_module.Settings, "runtime_dir", property(lambda self: tmp_path))
-    settings_module.get_settings.cache_clear()
-    from copilot.main import app
-
-    with TestClient(app) as c:
-        container = app.state.container
-        container.analyzer.schedule = lambda session: None  # no Bedrock in tests
-        container.assist._enabled = False
-        container.registry.reset()
-        yield c
-    settings_module.get_settings.cache_clear()
-
+# ---- through the real API (the shared signed-in `client` fixture; Bedrock is faked) ----
 
 def test_api_flow_number_then_card_then_current_location(client):
     # The call starts. The customer reports the problem. No card yet, but the agent is prompted.
@@ -241,7 +223,14 @@ def test_health_says_where_the_data_comes_from(client):
     assert data == {"backend": "files", "fallback_active": False, "reason": None}
 
 
-def test_tickets_are_numbered_saved_shown_on_the_card_and_cleared_by_reset(client):
+def test_tickets_are_numbered_saved_shown_on_the_card_and_cleared_by_reset(runtime_dir, users_file, fake_bedrock):
+    from tests.conftest import make_settings, open_client
+
+    with open_client(make_settings(runtime_dir, demo_controls_enabled=True), fake_bedrock) as client:  # reset is a demo control
+        _tickets_flow(client)
+
+
+def _tickets_flow(client):
     client.post("/api/transcript", json={"speaker": "customer", "text": "Amar net slow"})
     draft = {"customer_id": "karim", "category": "Network", "subject": "Slow internet again", "problem": "Still slow"}
 

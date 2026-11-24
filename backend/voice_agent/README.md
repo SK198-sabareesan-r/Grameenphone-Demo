@@ -112,3 +112,7 @@ Real calls use paid Vobiz, Sarvam and AWS services.
 
 See `config/.env.example`. Secrets are read from the environment or `config/.env` only and are held as
 `SecretStr`, so they are not logged.
+
+## Copilot forwarding and human hand-off (M3)
+
+Set `COPILOT_TRANSCRIPT_WEBHOOK_URL` (and the same `INTERNAL_API_TOKEN` as the Copilot) to forward transcripts, AI replies and call events. Set `HUMAN_HANDOFF_ENABLED` and `HUMAN_AGENT_PHONE` to allow a transfer to a human. Routes: `POST /api/vobiz/calls/{id}/handoff|hold|resume` and `GET /api/vobiz/calls/{id}/handoff` (internal token). Details: ../../M3-LIVE-VOICE.md.

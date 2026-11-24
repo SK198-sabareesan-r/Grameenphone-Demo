@@ -2,8 +2,13 @@ export const initialCallState = {
   callSid: "",
   active: false,
   ended: false,
+  // Voice calls: status (in_progress | handoff_requested | dialing_human | with_human | on_hold |
+  // human_disconnected | ended) and who handles the call (ai_agent | human_agent). Null for typed calls.
+  status: null,
+  agentMode: null,
   turns: [],
-  partials: { customer: "", agent: "" },
+  // One in-progress line per participant: customer, AI agent (voice bot), human agent.
+  partials: { customer: "", ai_agent: "", human_agent: "" },
   callerNumber: "",
   card: null,
   currentLocation: null,
@@ -16,17 +21,17 @@ export const initialCallState = {
   summary: null,
   ticket: null,
   recordingUrl: "",
-  sttStatus: {},
 };
 
 // Replace the whole call from a snapshot sent by the backend.
-function fromView(view, previous) {
+function fromView(view) {
   return {
     ...initialCallState,
-    sttStatus: previous.sttStatus,
     active: true,
     callSid: view.call_sid,
     ended: view.ended,
+    status: view.status ?? null,
+    agentMode: view.agent_mode ?? null,
     turns: view.turns,
     callerNumber: view.caller_number || "",
     card: view.card,
@@ -63,7 +68,7 @@ export function callReducer(state, action) {
   switch (type) {
     case "snapshot":
     case "call.started":
-      return fromView(data, state);
+      return fromView(data);
     case "transcript":
       return applyTranscript(state, data);
     case "card":
@@ -82,16 +87,20 @@ export function callReducer(state, action) {
       return { ...state, answerPending: data };
     case "answer":
       return applyAnswer(state, data);
+    case "call.status":
+      return { ...state, status: data.status, agentMode: data.agent_mode ?? state.agentMode };
     case "call.ended":
-      return { ...state, ended: true, answerPending: null, partials: { customer: "", agent: "" } };
+      return {
+        ...state,
+        ended: true,
+        status: state.status ? "ended" : state.status,
+        answerPending: null,
+        partials: { ...initialCallState.partials },
+      };
     case "summary":
       return { ...state, summary: data };
     case "ticket.created":
       return { ...state, ticket: data };
-    case "recording":
-      return { ...state, recordingUrl: data.url };
-    case "stt.status":
-      return { ...state, sttStatus: { ...state.sttStatus, [data.speaker]: data.status } };
     case "reset":
       return { ...initialCallState };
     default:

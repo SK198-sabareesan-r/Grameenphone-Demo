@@ -3,13 +3,15 @@
 import time
 from dataclasses import dataclass, field
 
+from copilot.models.participants import TRANSCRIPT_LABELS
+
 MAX_ANSWERS = 20
 
 
 @dataclass
 class Turn:
     id: int
-    speaker: str
+    speaker: str  # a participant role: customer | ai_agent | human_agent
     text: str
     ts: float
 
@@ -36,9 +38,13 @@ class CallSession:
     summary: dict | None = None
     ticket: dict | None = None
     recording_url: str = ""
+    # Set by voice calls (M3). status: in_progress | handoff_requested | dialing_human | with_human |
+    # on_hold | human_disconnected | ended. agent_mode: ai_agent | human_agent (None for typed calls).
+    status: str = "in_progress"
+    agent_mode: str | None = None
 
-    def add_turn(self, speaker: str, text: str) -> Turn:
-        turn = Turn(id=len(self.turns) + 1, speaker=speaker, text=text, ts=time.time())
+    def add_turn(self, speaker: str, text: str, ts: float | None = None) -> Turn:
+        turn = Turn(id=len(self.turns) + 1, speaker=speaker, text=text, ts=ts or time.time())
         self.turns.append(turn)
         return turn
 
@@ -66,8 +72,11 @@ class CallSession:
         self.answers = self.answers[-MAX_ANSWERS:]
 
     def transcript_text(self, last: int | None = None) -> str:
+        """Transcript for the model, one line per turn, labelled CUSTOMER / AI AGENT / HUMAN AGENT."""
         turns = self.turns[-last:] if last else self.turns
-        return "\n".join(f"{t.speaker.upper()}: {t.text}" for t in turns)
+        return "\n".join(
+            f"{TRANSCRIPT_LABELS.get(t.speaker, t.speaker.upper())}: {t.text}" for t in turns
+        )
 
     def card(self) -> dict | None:
         """The customer card. None until the agent has confirmed the mobile number."""

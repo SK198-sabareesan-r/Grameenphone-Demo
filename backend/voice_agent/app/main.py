@@ -6,15 +6,17 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.routes import conversation as conversation_routes
-from app.api.routes import health, sarvam_config, vobiz, vobiz_config, vobiz_ws
+from app.api.routes import handoff, health, sarvam_config, vobiz, vobiz_config, vobiz_ws
 from app.services.conversation.manager import ConversationManager, TtsClient
 from app.services.llm.base import LlmClient, LlmConfigError
 from app.services.sarvam.tts import SarvamTtsClient
-from app.core.config import Settings, get_settings
+from app.core.config import RoutingConfigError, Settings, get_settings
+from app.services.conversation.resolution import ResolutionPolicy
 from app.core.logging import configure_logging
 from app.integrations.vobiz.call_control import DuplicateCallGuard
 from app.integrations.vobiz.errors import VobizError
@@ -22,7 +24,9 @@ from app.integrations.vobiz.webhooks import EventDeduper
 from app.services.voice.audio_consumer import AudioSinkFactory
 from app.services.voice.call_manager import CallStateManager
 from app.publishers.pipeline import PipelineCallListener, PublisherSubscriber, TranscriptEventPipeline
+from app.publishers.copilot_forwarder import CopilotCallListener, CopilotEventForwarder
 from app.publishers.transcripts import LoggingTranscriptPublisher, TranscriptPublisher
+from app.services.voice.handoff import HandoffService
 from app.services.sarvam.errors import SarvamConfigError
 from app.services.voice.dev_capture import build_dev_capture
 from app.services.voice.sarvam_stt_sink import SarvamSttSinkFactory
@@ -46,6 +50,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Streams are closed first so their final transcripts reach the pipeline, then it is drained.
     pipeline = app.state.transcript_pipeline
     await pipeline.shutdown(app.state.settings.transcript_drain_timeout_s + 1.0)
+    await app.state.copilot.aclose()  # after the pipeline: its last events are in the forwarder by now
     tts = app.state.conversation_tts
     if tts is not None and hasattr(tts, "aclose"):
         await tts.aclose()
@@ -97,6 +102,11 @@ def _install_conversation(
         tts_timeout_s=settings.ai_tts_timeout_s + 2.0,
         barge_in_enabled=settings.ai_barge_in_enabled,
         barge_in_grace_ms=settings.ai_barge_in_grace_ms,
+        on_assistant_message=app.state.copilot.emit_ai_message,
+        handoff_trigger=app.state.handoff.phrase_trigger,
+        resolution=app.state.resolution,
+        unresolved_handoff=app.state.handoff.unresolved_trigger,
+        on_resolution_event=app.state.copilot.emit_call_event,
     )
     app.state.call_manager.add_listener(manager)  # added after PipelineCallListener: its session opens first
     app.state.transcript_pipeline.add_global_subscriber(manager, "conversation")
@@ -118,6 +128,7 @@ def create_app(
     monitor_sink_factory: AudioSinkFactory | None = None,
     conversation_llm: LlmClient | None = None,
     conversation_tts: TtsClient | None = None,
+    copilot_http_client: "httpx.AsyncClient | None" = None,
 ) -> FastAPI:
     """Create the FastAPI app. Accepts settings for easy overriding in tests.
 
@@ -126,6 +137,19 @@ def create_app(
     """
     settings = settings or get_settings()
     configure_logging(settings.log_level)
+    # Call routing (M3.3) is validated before anything starts: a contradiction here would otherwise show up mid-call.
+    routing_errors, routing_warnings = settings.routing_problems()
+    if routing_errors:
+        raise RoutingConfigError("; ".join(routing_errors))
+    for warning in routing_warnings:
+        logger.warning("call_routing_warning: %s", warning)
+    logger.info("call_routing", extra={
+        "mode": settings.call_routing_mode, "ai_agent_enabled": settings.ai_conversation_enabled,
+        "ai_auto_answer": settings.ai_agent_auto_answer, "human_handoff_enabled": settings.human_handoff_enabled,
+        "human_handoff_mode": settings.human_handoff_mode, "auto_handoff_on_unresolved": settings.auto_handoff_allowed,
+        "max_resolution_attempts": settings.ai_max_resolution_attempts,
+        "background_assist": settings.ai_background_assist_enabled,
+    })
 
     app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=_lifespan)
     app.state.settings = settings
@@ -145,6 +169,38 @@ def create_app(
         PipelineCallListener(pipeline, live_stream_count=app.state.call_manager.live_stream_count)
     )
     pipeline.add_global_subscriber(PublisherSubscriber(LoggingTranscriptPublisher()), "logging")
+    # M3: live events to the Copilot (transcripts, AI replies, call lifecycle). Off unless the URL and
+    # INTERNAL_API_TOKEN are set. Never blocks audio: see app/publishers/copilot_forwarder.py.
+    forwarder = app.state.copilot = CopilotEventForwarder(settings, client=copilot_http_client)
+    info = forwarder.describe()
+    logger.info("copilot_forwarding", extra=info)
+    if not forwarder.enabled:  # loud on purpose: without this nothing reaches the Copilot and nothing else says so
+        logger.warning(
+            "copilot_forwarding_disabled: live transcripts will NOT reach the Copilot",
+            extra={"reason": info["disabled_reason"]},
+        )
+    if forwarder.enabled:
+        pipeline.add_global_subscriber(forwarder, "copilot")
+    # Human hand-off (M3). Listeners run in this order: hand-off state first, then the call_ended report.
+    app.state.handoff = HandoffService(settings, forwarder, app.state.call_manager, lambda: app.state.conversation)
+    handoff_info = app.state.handoff.describe()
+    logger.info("human_handoff", extra=handoff_info)
+    if not handoff_info["enabled"]:  # customers asking for a person are told it is unavailable; say why here
+        logger.warning(
+            "human_handoff_unavailable: a customer asking for a human agent will be told no transfer is possible",
+            extra={"reason": handoff_info["unavailable_reason"]},
+        )
+    resolution = app.state.resolution = ResolutionPolicy(
+        max_attempts=settings.ai_max_resolution_attempts, auto_handoff=settings.auto_handoff_allowed
+    )
+
+    def _outcome(call_id: str) -> str:
+        state = app.state.handoff.state(call_id)
+        return resolution.outcome(call_id, state.status if state else None)
+
+    forwarder.resolution_outcome = _outcome
+    app.state.call_manager.add_listener(app.state.handoff)
+    app.state.call_manager.add_listener(CopilotCallListener(forwarder, conversation_enabled=settings.ai_conversation_enabled))
     if transcript_publisher is not None:
         pipeline.add_global_subscriber(PublisherSubscriber(transcript_publisher), "injected")
     # Development-only inbound capture (M4.2). Never installed unless APP_ENV=development and
@@ -193,6 +249,7 @@ def create_app(
         monitor_sink_factory=monitor_sink_factory,
     )
     app.include_router(vobiz_ws.create_ws_router(settings))
+    app.include_router(handoff.create_router())
 
     @app.exception_handler(VobizError)
     async def _vobiz_error_handler(_: Request, exc: VobizError) -> JSONResponse:

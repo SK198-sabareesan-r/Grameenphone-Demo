@@ -1,7 +1,7 @@
-﻿# Grameenphone AI Copilot (demo)
+# Grameenphone AI Copilot (demo)
 
 ```
-backend/    FastAPI service: Twilio media stream, Sarvam speech-to-text, Amazon Bedrock, mock GP data
+backend/    Copilot FastAPI service: sign-in, live panel events, Amazon Bedrock analysis, mock GP data
   config/     settings.py and .env (all credentials live here, git-ignored)
   copilot/    api/ (routes), services/, models/, utils/, container.py, main.py
   data/       knowledge articles, mock customers, prompts
@@ -19,9 +19,20 @@ Backend (from `backend/`):
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-copy config\.env.example config\.env      # then fill in the values
+copy config\.env.example config\.env      # then fill in the values (COPILOT_SESSION_SECRET is required)
+python -m scripts.hash_password --username tania --name "Tania" --role agent   # creates config/users.json
 uvicorn copilot.main:app --host 0.0.0.0 --port 8000
+pytest                                    # Copilot tests: no network, no provider calls
 ```
+
+Sign-in:
+
+- Agents sign in with a username and password from `config/users.json` (git-ignored, scrypt hashes).
+  Roles: `agent`, `supervisor` (supervisor includes agent). Restart the backend after editing users.
+- Every `/api` route except `GET /api/health` and `POST /api/auth/login` needs `Authorization: Bearer <token>`.
+- The panel WebSocket uses a one-time ticket from `POST /api/auth/ws-ticket` (`/api/panel/stream?ticket=...`).
+- The customer picker and "Reset demo data" work only with `DEMO_CONTROLS_ENABLED=true`.
+- `/docs` and `/openapi.json` are off unless `COPILOT_API_DOCS_ENABLED=true`.
 
 Frontend (from `frontend/`):
 
@@ -85,22 +96,23 @@ pytest                                        # no network, no provider calls
   because variables such as `SARVAM_STT_MODE` and `SARVAM_STT_STREAM_TYPE` mean different things in the two services.
 - Full details are in `backend/voice_agent/README.md`.
 
-## Twilio setup
+## Telephony
 
-- Voice webhook (TwiML App and phone number): `POST {PUBLIC_BASE_URL}/api/twilio/voice`
-- The backend returns TwiML that streams both call legs to `wss://{host}/api/twilio/stream` and rings the browser softphone.
+Phone calls are handled by the voice agent (Vobiz). The Copilot is not yet connected to it: calls on
+the panel come from typed lines until the voice-to-Copilot integration is added.
 
-## API
+## API (Copilot)
+
+All routes need a signed-in agent except where marked public.
 
 | Group | Method | Path | Purpose |
 |---|---|---|---|
-| System | GET | `/api/health` | Health check, and whether the data comes from DynamoDB or the fallback files |
-| System | GET | `/api/softphone/token` | Browser softphone access token |
-| System | POST | `/api/data/reset` | Clear the current call, the tickets the app created, and all saved calls. Seeded data stays |
-| Twilio | POST | `/api/twilio/voice` | Voice webhook |
-| Twilio | POST | `/api/twilio/recording` | Recording callback |
-| Twilio | WS | `/api/twilio/stream` | Media stream |
-| Call | WS | `/api/panel/stream` | Live events to the panel |
+| System | GET | `/api/health` | Health check (public), and whether the data comes from DynamoDB or the fallback files |
+| System | POST | `/api/data/reset` | Clear the current call, the tickets the app created and all saved calls. Seeded data stays (demo controls only) |
+| Auth | POST | `/api/auth/login` | Sign in, returns a bearer token (public) |
+| Auth | GET | `/api/auth/me` | Current user and whether demo controls are on |
+| Auth | POST | `/api/auth/ws-ticket` | One-time ticket for the panel WebSocket |
+| Call | WS | `/api/panel/stream?ticket=` | Live events to the panel |
 | Call | GET | `/api/calls/current` | Current call state |
 | Call | POST | `/api/calls/current/end` | End the call on screen |
 | Transcript | GET | `/api/transcript` | Turns so far |
@@ -127,3 +139,7 @@ pytest                                        # no network, no provider calls
 | Location | GET | `/api/location` | Registered and current location status |
 | Location | PUT | `/api/location` | The customer's current location. Checks the network status there |
 | Dashboard | GET | `/api/dashboard` | Adoption numbers |
+
+## Live voice calls (M3)
+
+The voice agent forwards live transcripts and call events to the Copilot, which stores them as JSON under `backend/data/conversations/` (git-ignored) and shows them live. The AI can hand a call to a human agent's phone and keeps assisting in the background. Setup, API, storage limits, hold/resume and speaker attribution: see [M3-LIVE-VOICE.md](M3-LIVE-VOICE.md).

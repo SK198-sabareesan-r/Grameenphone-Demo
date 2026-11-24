@@ -2,16 +2,26 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from copilot.models.participants import normalize_speaker
 
 TICKET_CATEGORIES = ["Network", "Billing", "Pack", "SIM", "Roaming", "Other"]
 
 
 class TranscriptRequest(BaseModel):
-    """One typed line, used when live audio is not available."""
+    """One typed line, used when live audio is not available.
 
-    speaker: Literal["agent", "customer"]
+    speaker: customer | human_agent | ai_agent. The older "agent" is accepted and means human_agent.
+    """
+
+    speaker: Literal["customer", "human_agent", "ai_agent", "agent"]
     text: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("speaker")
+    @classmethod
+    def _to_role(cls, value: str) -> str:
+        return normalize_speaker(value)
 
 
 class AskRequest(BaseModel):
@@ -27,6 +37,11 @@ class TicketRequest(BaseModel):
     checked: str = ""
     outcome: str = ""
     follow_up: str = ""
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
 
 
 class IdentityRequest(BaseModel):

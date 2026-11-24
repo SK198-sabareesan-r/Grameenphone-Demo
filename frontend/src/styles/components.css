@@ -36,22 +36,16 @@
   display: inline-block;
 }
 
-.dot-ready,
-.dot-in-call {
+.dot-live {
   background: var(--gp-ok);
 }
 
-.dot-ringing,
-.dot-connecting {
-  background: var(--gp-warn);
+.dot-ended {
+  background: var(--gp-grey);
 }
 
-.dot-error {
-  background: var(--gp-danger);
-}
-
-/* Softphone */
-.softphone {
+/* Call status bar */
+.call-bar-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -59,11 +53,55 @@
   gap: 10px;
 }
 
-.softphone-info,
-.softphone-actions {
+.call-bar-info {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.call-bar-note {
+  margin: 8px 0 0;
+}
+
+/* Sign-in */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+}
+
+.login-card .btn {
+  align-self: stretch;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+}
+
+.login-brand img {
+  border-radius: 8px;
+}
+
+.header-signout {
+  background: transparent;
+  color: var(--gp-white);
+  border-color: rgba(255, 255, 255, 0.6);
+  padding: 3px 12px;
+  font-size: 13px;
+}
+
+.header-signout:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Transcript */
@@ -95,10 +133,19 @@
   background: var(--gp-surface);
 }
 
-.line-agent {
+/* Human agent ("agent" is the older name, kept for older records). */
+.line-agent,
+.line-human_agent {
   align-self: flex-end;
   background: var(--gp-blue-soft);
   border: 1px solid #bfd8ea;
+}
+
+/* AI voice agent: left side like the caller's counterpart, dashed so it never reads as the human. */
+.line-ai_agent {
+  align-self: flex-start;
+  background: var(--gp-white);
+  border: 1px dashed var(--gp-blue);
 }
 
 .line-partial {
@@ -608,4 +655,32 @@
   .dash-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Voice calls (M3): time on each line, who handles the call, speech with no verified speaker */
+.line-time {
+  margin-left: 8px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.line-unknown {
+  align-self: flex-start;
+  background: var(--gp-white);
+  border: 1px dotted var(--gp-grey);
+}
+
+.mode-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mode-ai_agent {
+  background: var(--gp-surface);
+}
+
+.mode-human_agent {
+  background: var(--gp-blue-soft);
 }

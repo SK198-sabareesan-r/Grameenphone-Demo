@@ -7,7 +7,7 @@ attributes are bidirectional, audioTrack, keepCallAlive and contentType.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from xml.etree import ElementTree as ET
 
 # Inbound formats Vobiz can send to our WebSocket (the <Stream contentType> attribute).
@@ -73,3 +73,71 @@ def build_bidirectional_stream_xml(
     stream = ET.SubElement(response, "Stream", attributes)
     stream.text = ws_url
     return f"{XML_DECLARATION}\n{ET.tostring(response, encoding='unicode')}"
+
+
+_DIGIT_PATTERN = re.compile(r"^[0-9*#]{1,16}$")
+
+
+def build_handoff_xml(
+    *,
+    number: str | Sequence[str],
+    monitor_ws_url: str | None,
+    callback_url: str,
+    action_url: str,
+    content_type: str = "audio/x-l16;rate=16000",
+    timeout_s: int = 30,
+    caller_id: str | None = None,
+    digits_match_bleg: tuple[str, ...] = (),
+    stream_extra_headers: Mapping[str, str] | None = None,
+    allow_insecure: bool = False,
+) -> str:
+    """VobizXML for a transferred call: fork BOTH audio tracks to a one-way monitor stream, then dial a human.
+
+    `<Stream bidirectional="false" audioTrack="both" keepCallAlive="false">` does not hold the call, so
+    `<Dial>` runs right away while the stream keeps forking. The AI never plays audio on this stream
+    (it is one-way). `callbackUrl` receives the B-leg events (answered, connected, digits, hangup) and
+    `action` receives the final result; with redirect="true" the XML returned by `action` decides what
+    happens next (used to return the caller to the AI when the human does not answer).
+
+    `digits_match_bleg` are digit strings the human agent may press on their own phone; Vobiz reports a
+    match as DialDigitsMatch with DialDigitsPressedBy=bleg.
+    """
+    if content_type not in INBOUND_CONTENT_TYPES:
+        raise ValueError(f"contentType must be one of {sorted(INBOUND_CONTENT_TYPES)}")
+    if monitor_ws_url is not None:
+        _validate_ws_url(monitor_ws_url, allow_insecure=allow_insecure)
+    for patt in digits_match_bleg:
+        if not _DIGIT_PATTERN.match(patt):
+            raise ValueError("digit patterns may only contain 0-9, * and #")
+    stream_attrs = {
+        "bidirectional": "false",
+        "audioTrack": "both",
+        "keepCallAlive": "false",
+        "contentType": content_type,
+    }
+    if stream_extra_headers:
+        stream_attrs["extraHeaders"] = _format_extra_headers(stream_extra_headers)
+    dial_attrs = {
+        "action": action_url,
+        "method": "POST",
+        "redirect": "true",
+        "callbackUrl": callback_url,
+        "callbackMethod": "POST",
+        "timeout": str(int(timeout_s)),
+    }
+    if caller_id:
+        dial_attrs["callerId"] = caller_id
+    if digits_match_bleg:
+        dial_attrs["digitsMatchBLeg"] = ",".join(digits_match_bleg)
+
+    response = ET.Element("Response")
+    if monitor_ws_url is not None:  # None = AI_BACKGROUND_ASSIST_ENABLED=false: no audio is forked after the transfer
+        ET.SubElement(response, "Stream", stream_attrs).text = monitor_ws_url
+    dial = ET.SubElement(response, "Dial", dial_attrs)
+    for each in ([number] if isinstance(number, str) else list(number)):  # several numbers ring together; the first to answer is bridged
+        ET.SubElement(dial, "Number").text = each
+    return f"{XML_DECLARATION}\n{ET.tostring(response, encoding='unicode')}"
+
+
+def build_hangup_xml() -> str:
+    return f"{XML_DECLARATION}\n<Response><Hangup /></Response>"

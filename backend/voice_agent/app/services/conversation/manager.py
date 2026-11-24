@@ -28,7 +28,14 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 from app.publishers.transcripts import TRANSCRIPT_FINAL, VAD_SPEECH_START, TranscriptEvent
-from app.services.conversation.prompts import GREETING_TEXT, SYSTEM_PROMPT, clean_reply
+from app.services.conversation.prompts import (
+    CONTACT_DETAILS_BLOCKED_REPLY,
+    GREETING_TEXT,
+    SYSTEM_PROMPT,
+    clean_reply,
+    contains_contact_details,
+)
+from app.services.conversation.resolution import ResolutionPolicy
 from app.services.conversation.state import CallConversation, ConversationMetrics, Phase
 from app.services.llm.base import LlmClient, LlmError
 from app.services.voice.playback import CLEARED, PLAYED, TIMEOUT
@@ -63,6 +70,11 @@ class ConversationManager:
         barge_in_enabled: bool = True,
         barge_in_grace_ms: int = 500,
         greeting_text: str = GREETING_TEXT,
+        on_assistant_message: Callable[[str, str], None] | None = None,
+        handoff_trigger: Callable[[str, str], bool] | None = None,
+        resolution: ResolutionPolicy | None = None,
+        unresolved_handoff: Callable[[str, str], bool] | None = None,
+        on_resolution_event: Callable[[str, str, dict], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._llm = llm
@@ -74,6 +86,16 @@ class ConversationManager:
         self._barge_in = barge_in_enabled
         self._grace_s = barge_in_grace_ms / 1000
         self._greeting_text = greeting_text
+        # (call_id, text) when the AI produces a reply. Must be quick and non-blocking; failures are ignored.
+        self._on_assistant_message = on_assistant_message
+        # (call_id, customer_text) -> True if a human hand-off was started; the AI then does not answer.
+        self._handoff_trigger = handoff_trigger
+        # AI-first routing: `resolution` counts the customer's "it still does not work" reports; when a call becomes
+        # eligible and the model's structured assessment says escalate, `unresolved_handoff(call_id, reason)` starts the
+        # transfer (it returns False when no transfer is possible, and the AI simply keeps helping).
+        self._resolution = resolution
+        self._unresolved_handoff = unresolved_handoff
+        self._on_resolution_event = on_resolution_event
         self._clock = clock
         self._calls: dict[str, CallConversation] = {}
         self._greeted: OrderedDict[str, None] = OrderedDict()  # logical calls that already got a greeting
@@ -104,6 +126,10 @@ class ConversationManager:
         if conv is None:
             conv = self._calls[call_id] = CallConversation(call_id, history_max=self._history_max)
             self.metrics.calls_started += 1
+        if conv.pending_notice:  # a failed hand-off brought the caller back: tell them, do not re-greet
+            conv.greeting = "played"
+            self._launch(conv, "notice")
+            return
         if call_id in self._greeted:  # reconnect (or a re-created state): never greet twice
             logger.info("ai_greeting_skipped", extra={"call_id": call_id, "reason": "already_greeted"})
             return
@@ -135,6 +161,9 @@ class ConversationManager:
         conv = self._calls.get(event.call_id)
         if conv is None or conv.closed:
             return  # no live conversation for this call (ended, or no primary stream was ever seen)
+        if conv.suspended:
+            self.metrics.ignored_events += 1
+            return  # a human agent is handling the call: the AI never answers
         if not (event.source == "sarvam" and event.speaker == "customer" and event.track in (None, TRACK_INBOUND)):
             self.metrics.ignored_events += 1
             return  # assistant/outbound audio is never customer input
@@ -153,15 +182,40 @@ class ConversationManager:
             return
         self.metrics.utterances_processed += 1
         logger.info("ai_utterance_accepted", extra={**event.log_fields(), "phase": conv.phase.value})
+        # The customer asked for a person: this is checked first, so neither a queued greeting reply nor the LLM
+        # (which would invent a phone number) answers it.
+        if self._handoff_trigger is not None:
+            try:
+                if self._handoff_trigger(conv.call_id, text):
+                    return  # hand-off started: the AI does not also answer this sentence
+            except Exception as exc:
+                logger.warning("ai_handoff_trigger_failed", extra={"call_id": conv.call_id, "error": type(exc).__name__})
         if conv.task_kind == "greeting" and conv.task_active and conv.phase != Phase.PLAYING:
             # The caller spoke (e.g. "hello?") before the greeting reached the line: let the greeting play
             # and answer right after it, instead of cancelling it.
             conv.add("user", text)
             conv.pending_reply = True
             return
+        eligible = self._observe_resolution(conv, text)
         await self._interrupt(conv, "new_utterance")
         conv.add("user", text)
-        self._launch(conv, "turn")
+        self._launch(conv, "assess" if eligible else "turn")
+
+    def _observe_resolution(self, conv: CallConversation, text: str) -> bool:
+        """Count this customer sentence for AI-first routing. True if the call is now eligible for escalation."""
+        if self._resolution is None:
+            return False
+        try:
+            seen = self._resolution.observe(conv.call_id, text, conv.turns)
+            if seen.signal and self._on_resolution_event is not None:
+                self._on_resolution_event(
+                    conv.call_id, "ai_resolution_attempt",
+                    {"signal": seen.signal, "attempt": seen.attempt, "max_attempts": self._resolution.max_attempts},
+                )
+            return seen.eligible and self._unresolved_handoff is not None
+        except Exception as exc:  # resolution tracking must never break the conversation
+            logger.warning("ai_resolution_observe_failed", extra={"call_id": conv.call_id, "error": type(exc).__name__})
+            return False
 
     async def _on_speech_start(self, conv: CallConversation, event: TranscriptEvent) -> None:
         if not self._barge_in or conv.phase != Phase.PLAYING:
@@ -180,7 +234,7 @@ class ConversationManager:
         conv.turn_id += 1
         turn_id = conv.turn_id
         conv.task_kind = kind
-        run = self._run_greeting if kind == "greeting" else self._run_turn
+        run = {"greeting": self._run_greeting, "notice": self._run_notice, "assess": self._run_assess}.get(kind, self._run_turn)
         task = asyncio.create_task(run(conv, turn_id), name=f"ai-conversation:{kind}:{conv.call_id}")
         conv.task = task
         self._tasks.add(task)
@@ -259,6 +313,7 @@ class ConversationManager:
         try:
             conv.phase = Phase.SYNTHESIZING
             conv.add("assistant", self._greeting_text)
+            self._observe(call_id, self._greeting_text)
             outcome = await self._speak(conv, turn_id, self._greeting_text, kind="greeting")
             if not self._current(conv, turn_id):
                 return
@@ -277,6 +332,110 @@ class ConversationManager:
         finally:
             self._finish_phase(conv, turn_id)
 
+    async def _run_assess(self, conv: CallConversation, turn_id: int) -> None:
+        """The call is eligible for escalation: ask the model for a structured decision (strict schema), then either
+        start the transfer or carry on with a normal answer. The customer's sentence is already in the history."""
+        call_id = conv.call_id
+        started = False
+        try:
+            conv.phase = Phase.THINKING
+            decision = await self._resolution.assess(self._llm, call_id, list(conv.messages))  # type: ignore[union-attr]
+            if not self._current(conv, turn_id):
+                return
+            if decision.escalate:
+                started = bool(self._unresolved_handoff and self._unresolved_handoff(call_id, f"ai_unresolved ({decision.reason})"))
+                if started:
+                    self._resolution.mark_escalated(call_id)  # type: ignore[union-attr]
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._fail(conv, turn_id, "assess", exc)
+        if started:
+            self._finish_phase(conv, turn_id)
+            return  # the hand-off service announces and transfers; the AI says nothing more
+        await self._run_turn(conv, turn_id)  # no escalation: answer the customer as usual
+
+    async def _run_notice(self, conv: CallConversation, turn_id: int) -> None:
+        """Speak one fixed sentence (for example after a failed hand-off). Same path as the greeting."""
+        text, conv.pending_notice = conv.pending_notice or "", None
+        try:
+            if text:
+                conv.phase = Phase.SYNTHESIZING
+                conv.add("assistant", text)
+                self._observe(conv.call_id, text)
+                await self._speak(conv, turn_id, text, kind="notice")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._fail(conv, turn_id, "notice", exc)
+        finally:
+            self._finish_phase(conv, turn_id)
+
+    def _observe(self, call_id: str, text: str) -> None:
+        if self._on_assistant_message is None:
+            return
+        try:
+            self._on_assistant_message(call_id, text)
+        except Exception as exc:  # reporting must never affect the call
+            logger.warning("ai_message_observer_failed", extra={"call_id": call_id, "error": type(exc).__name__})
+
+    async def suspend(self, call_id: str, reason: str) -> bool:
+        """A human agent takes over: stop any AI speech now and ignore customer speech from here on.
+        Returns False if the call has no AI conversation."""
+        conv = self._calls.get(call_id)
+        if conv is None or conv.closed:
+            return False
+        conv.suspended = True
+        conv.pending_reply = False
+        await self._interrupt(conv, reason)
+        logger.info("ai_conversation_suspended", extra={"call_id": call_id, "reason": reason})
+        return True
+
+    async def say_and_suspend(self, call_id: str, text: str, timeout_s: float = 8.0) -> bool:
+        """Hand-off announcement: stop whatever the AI is doing, say `text` once, wait (bounded) until it was
+        played, and from then on stay silent. Customer speech is ignored from the first moment. Returns True if the
+        announcement was played; False if it could not be (the call still proceeds with the hand-off)."""
+        conv = self._calls.get(call_id)
+        if conv is None or conv.closed:
+            return False
+        await self._interrupt(conv, "handoff")
+        conv.suspended = True
+        conv.pending_reply = False
+        conv.pending_notice = text
+        self._launch(conv, "notice")
+        task = conv.task
+        if task is not None:
+            await asyncio.wait({task}, timeout=timeout_s)
+            if not task.done():  # TTS or playback is slow: do not hold the customer up, cut it off
+                await self._interrupt(conv, "handoff_announcement_timeout")
+                return False
+        return True
+
+    async def speak_notice(self, call_id: str, text: str) -> bool:
+        """Say one fixed sentence now (not suspended). Used when a hand-off is not possible."""
+        conv = self._calls.get(call_id)
+        if conv is None or conv.closed or conv.suspended:
+            return False
+        await self._interrupt(conv, "notice")
+        conv.pending_notice = text
+        self._launch(conv, "notice")
+        return True
+
+    def resume(self, call_id: str, notice: str | None = None, *, speak_now: bool = False) -> bool:
+        """The hand-off did not happen: the AI takes the call back. `notice` is spoken when its stream returns,
+        or right away with `speak_now` (the stream never went away, e.g. the transfer request failed)."""
+        conv = self._calls.get(call_id)
+        if conv is None or conv.closed:
+            return False
+        conv.suspended = False
+        conv.pending_notice = notice
+        if self._resolution is not None:
+            self._resolution.reopen(call_id)  # the transfer did not happen: the AI may try again later
+        if speak_now and notice:
+            self._launch(conv, "notice")
+        logger.info("ai_conversation_resumed", extra={"call_id": call_id})
+        return True
+
     async def _run_turn(self, conv: CallConversation, turn_id: int) -> None:
         call_id = conv.call_id
         try:
@@ -291,6 +450,10 @@ class ConversationManager:
                 reply = clean_reply(result.text)
                 if not reply:
                     raise LlmError("empty reply after clean-up")
+                if contains_contact_details(reply):  # never read out a number the model may have invented
+                    self.metrics.contact_details_blocked += 1
+                    logger.warning("ai_reply_contact_details_blocked", extra={"call_id": call_id})
+                    reply = CONTACT_DETAILS_BLOCKED_REPLY
             except asyncio.CancelledError:
                 raise
             except asyncio.TimeoutError:
@@ -313,6 +476,7 @@ class ConversationManager:
             if not self._current(conv, turn_id):
                 return
             conv.add("assistant", reply)
+            self._observe(call_id, reply)
             conv.turns += 1
             await self._speak(conv, turn_id, reply, kind="turn")
         except asyncio.CancelledError:

@@ -23,6 +23,10 @@ frontend/dist/
 
 # Runtime data
 backend/data/runtime/
+# Per-call conversation JSON (transcripts, customer data). Never commit.
+backend/data/conversations/
+# Copilot login users (password hashes)
+backend/config/users.json
 
 # Misc
 *.log

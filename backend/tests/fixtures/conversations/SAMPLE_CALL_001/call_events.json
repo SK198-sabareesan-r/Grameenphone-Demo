@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "call_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7",
+  "session_id": "sess-5401fd2e-6344-40df-a22c-c8ffea7a92e7",
+  "customer_id": "rahim",
+  "events": [
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-call_started",
+      "type": "call_started",
+      "timestamp": "2026-11-24T08:01:39.415Z",
+      "source": "voice_agent",
+      "data": {
+        "direction": "inbound",
+        "customer_name": "Rahim Uddin",
+        "caller_ref": "***3456"
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-ai_agent_connected",
+      "type": "ai_agent_connected",
+      "timestamp": "2026-11-24T08:01:39.415Z",
+      "source": "voice_agent",
+      "data": {}
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-c1",
+      "type": "human_handoff_requested",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "voice_agent",
+      "data": {
+        "reason": "Customer asks for a refund the AI cannot approve",
+        "requested_by": "ai_agent",
+        "pending_actions": [
+          "Approve refund"
+        ]
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-c2",
+      "type": "human_agent_dialing",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "voice_agent",
+      "data": {
+        "agent_ref": "***0999"
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-human_agent_connected",
+      "type": "human_agent_connected",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "voice_agent",
+      "data": {
+        "agent_ref": "***0999"
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-human_agent_connected-assist",
+      "type": "ai_agent_assist_activated",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "copilot",
+      "data": {
+        "mode": "background_assist",
+        "ai_speaks_to_customer": false
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-c3",
+      "type": "customer_put_on_hold",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "voice_agent",
+      "data": {
+        "source": "human_agent_dtmf",
+        "hold_audio": "playing"
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-c4",
+      "type": "customer_resumed",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "voice_agent",
+      "data": {
+        "source": "human_agent_dtmf",
+        "hold_audio": "stopped"
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-c5",
+      "type": "human_agent_disconnected",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "voice_agent",
+      "data": {
+        "duration_s": "30",
+        "hangup_cause": null
+      }
+    },
+    {
+      "event_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7-call_ended",
+      "type": "call_ended",
+      "timestamp": "2026-11-24T08:01:39.417Z",
+      "source": "voice_agent",
+      "data": {
+        "reason": "hangup"
+      }
+    }
+  ]
+}

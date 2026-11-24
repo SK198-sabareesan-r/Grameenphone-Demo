@@ -18,7 +18,9 @@ export default function SummaryTicket({ call }) {
   useEffect(() => {
     api.ticketCategories().then((r) => setCategories(r.categories)).catch(() => {});
   }, []);
-  useEffect(() => setForm(summary ? { ...summary } : null), [summary]);
+  useEffect(() => {
+    setForm(summary ? { ...summary } : null);
+  }, [summary]);
 
   if (!ended) return null;
 

@@ -1,18 +1,23 @@
-"""One call: audio or typed lines in, transcripts, then panel updates."""
+"""One call: transcript lines in (typed now; the voice agent later), panel updates out."""
 
 import asyncio
-import base64
 import logging
 import time
 import uuid
 
 from copilot.container import Container
-from copilot.services.sarvam_stt import SarvamStream
+from copilot.models.participants import (
+    ANALYSIS_TRIGGERS,
+    COMPLIANCE_SPEAKERS,
+    CUSTOMER,
+    SUGGESTION_SPEAKERS,
+    UNKNOWN,
+    normalize_speaker,
+)
 from copilot.services.sessions import CallSession, Turn
 
 log = logging.getLogger(__name__)
-TRACK_SPEAKER = {"inbound": "customer", "outbound": "agent"}
-CHUNK_BYTES = 800  # 100 ms of 8 kHz mulaw
+SOURCES = ("typed", "voice")  # "voice" = a call forwarded by the voice agent (M3)
 
 
 def session_view(c: Container, session: CallSession) -> dict:
@@ -20,6 +25,8 @@ def session_view(c: Container, session: CallSession) -> dict:
     return {
         "call_sid": session.call_sid,
         "ended": session.ended_at is not None,
+        "status": session.status,
+        "agent_mode": session.agent_mode,
         "turns": [t.__dict__ for t in session.turns],
         "card": session.card(),
         "caller_number": session.caller_number,
@@ -41,7 +48,7 @@ async def ensure_pipeline(c: Container) -> "CallPipeline":
     if pipeline and session and session.ended_at is None:
         return pipeline
     pipeline = CallPipeline(c)
-    await pipeline.begin(call_sid=None, caller="", live_audio=False)
+    await pipeline.begin(call_sid=None, caller="", source="typed")
     return pipeline
 
 
@@ -49,82 +56,79 @@ class CallPipeline:
     def __init__(self, c: Container) -> None:
         self._c = c
         self.session: CallSession | None = None
-        self._streams: dict[str, SarvamStream] = {}
-        self._buffers = {speaker: bytearray() for speaker in TRACK_SPEAKER.values()}
+        self.source: str | None = None
 
-    # ---- Twilio media stream ----
-
-    async def handle(self, message: dict) -> None:
-        event = message.get("event")
-        if event == "start":
-            start = message["start"]
-            caller = (start.get("customParameters") or {}).get("caller", "")
-            await self.begin(start.get("callSid"), caller, live_audio=True)
-        elif event == "media":
-            await self._on_media(message["media"])
-        elif event == "stop":
-            await self.finish()
-
-    async def begin(self, call_sid: str | None, caller: str, live_audio: bool) -> None:
+    async def begin(
+        self, call_sid: str | None, caller: str, source: str = "typed", agent_mode: str | None = None
+    ) -> None:
+        if source not in SOURCES:
+            raise ValueError(f"unknown call source {source!r}")
         c = self._c
+        self.source = source
         # No customer is loaded here. The agent confirms the mobile number first (see identity_routes).
         self.session = c.registry.start(
             CallSession(
                 call_sid=call_sid or f"local-{uuid.uuid4().hex[:8]}",
                 compliance=c.compliance.initial_states(),
                 caller_number=caller,
+                agent_mode=agent_mode,  # voice calls start with the AI agent: the first panel update already says so
             ),
             pipeline=self,
         )
-        if live_audio:
-            for speaker in self._buffers:
-                stream = SarvamStream(c.settings, speaker, self.ingest, self._on_status)
-                stream.start()
-                self._streams[speaker] = stream
         await c.hub.broadcast("call.started", session_view(c, self.session))
 
-    async def _on_media(self, media: dict) -> None:
-        speaker = TRACK_SPEAKER.get(media.get("track", "inbound"))
-        if not speaker:
+    async def set_status(self, status: str, agent_mode: str | None = None) -> None:
+        """Voice calls: record the call status and who is handling the call, and tell the panel."""
+        session = self.session
+        if session is None or session.ended_at is not None:
             return
-        buffer = self._buffers[speaker]
-        buffer.extend(base64.b64decode(media["payload"]))
-        while len(buffer) >= CHUNK_BYTES:
-            chunk = bytes(buffer[:CHUNK_BYTES])
-            del buffer[:CHUNK_BYTES]
-            stream = self._streams.get(speaker)
-            if stream:
-                await stream.send_audio(chunk)
+        session.status = status
+        if agent_mode:
+            session.agent_mode = agent_mode
+        await self._c.hub.broadcast(
+            "call.status",
+            {"call_sid": session.call_sid, "status": status, "agent_mode": session.agent_mode},
+        )
 
-    async def _on_status(self, speaker: str, status: str) -> None:
-        await self._c.hub.broadcast("stt.status", {"speaker": speaker, "status": status})
+    # ---- Transcript handling ----
 
-    # ---- Transcript handling (used by speech-to-text and by typed lines) ----
+    async def ingest(self, speaker: str, kind: str, text: str, ts: float | None = None) -> None:
+        """Handle one transcript event. kind is 'partial' or 'final'.
 
-    async def ingest(self, speaker: str, kind: str, text: str) -> None:
-        """Handle one transcript event. kind is 'partial' or 'final'."""
+        speaker is a participant role (customer | ai_agent | human_agent); "agent" means human_agent.
+        "unknown" is accepted only from the voice integration, for speech whose speaker could not be
+        verified: it is shown and stored, but never used for compliance, suggestions or analysis.
+        `ts` is the time the speech was recognised (defaults to now).
+        """
+        role = UNKNOWN if speaker == UNKNOWN else normalize_speaker(speaker)
         text = text.strip()
         session = self.session
         if not text or session is None or session.ended_at is not None:
             return
         c = self._c
         if kind == "partial":
-            await c.hub.broadcast("transcript", {"speaker": speaker, "kind": "partial", "text": text})
+            partial = {"speaker": role, "kind": "partial", "text": text}
+            if ts:  # voice calls carry the recognition time; typed lines keep the original shape
+                partial["ts"] = ts
+            await c.hub.broadcast("transcript", partial)
             return
-        turn = session.add_turn(speaker, text)
+        turn = session.add_turn(role, text, ts)
         await c.hub.broadcast("transcript", {**turn.__dict__, "kind": "final"})
         await self._after_final_turn(session, turn)
 
     async def _after_final_turn(self, session: CallSession, turn: Turn) -> None:
+        """Per-role effects. AI-agent turns are stored and shown, but never change compliance or
+        suggestions and do not trigger analysis on their own (they are context for the next one)."""
         c = self._c
-        speaker, text = turn.speaker, turn.text
-        if speaker == "customer":
+        role, text = turn.speaker, turn.text
+        if role == CUSTOMER:
             await c.location.on_customer_turn(session, text)  # prompts the agent to ask where the customer is
-        if c.compliance.evaluate(session.compliance, speaker, text):
+        if role in COMPLIANCE_SPEAKERS and c.compliance.evaluate(session.compliance, role, text):
             await c.hub.broadcast("compliance", c.compliance.view(session.compliance))
-        if speaker == "agent" and c.nba.mark_used_by_speech(session, text):
+        if role in SUGGESTION_SPEAKERS and c.nba.mark_used_by_speech(session, text):
             await c.hub.broadcast("suggestions", list(session.suggestions.values()))
-        c.analyzer.schedule(session)
+        if role in ANALYSIS_TRIGGERS:
+            c.analyzer.schedule(session)
         c.assist.schedule(session, turn)  # customer sentences only; the service decides what to skip
 
     # ---- End of call ----
@@ -134,7 +138,6 @@ class CallPipeline:
         if session is None or session.ended_at is not None:
             return
         session.ended_at = time.time()
-        for stream in self._streams.values():
-            await stream.close()
+        session.status = "ended"
         await self._c.hub.broadcast("call.ended", {"call_sid": session.call_sid})
         asyncio.create_task(self._c.summarizer.run(session))
