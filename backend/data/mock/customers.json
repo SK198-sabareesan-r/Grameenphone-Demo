@@ -2,7 +2,7 @@
   {
     "id": "rahim",
     "name": "Rahim Uddin",
-    "msisdn": "01XXXXXXXX1",
+    "msisdn": "01200000001",
     "type": "Prepaid",
     "tier": "Standard",
     "area": "Mirpur",
@@ -18,7 +18,7 @@
   {
     "id": "nusrat",
     "name": "Nusrat Jahan",
-    "msisdn": "01XXXXXXXX2",
+    "msisdn": "01200000002",
     "type": "Postpaid",
     "tier": "Gold",
     "area": "Dhanmondi",
@@ -36,7 +36,7 @@
   {
     "id": "karim",
     "name": "Karim Hossain",
-    "msisdn": "01XXXXXXXX3",
+    "msisdn": "01200000003",
     "type": "Prepaid",
     "tier": "Standard",
     "area": "Uttara",
@@ -53,7 +53,7 @@
   {
     "id": "sumon",
     "name": "Sumon Ahmed",
-    "msisdn": "01XXXXXXXX4",
+    "msisdn": "01200000004",
     "type": "Postpaid",
     "tier": "Platinum",
     "area": "Gulshan",
@@ -66,7 +66,7 @@
   {
     "id": "mitu",
     "name": "Mitu Akter",
-    "msisdn": "01XXXXXXXX5",
+    "msisdn": "01200000005",
     "type": "Prepaid",
     "tier": "Standard",
     "area": "Chattogram",

@@ -6,6 +6,9 @@ export const API = {
   currentCall: "/api/calls/current",
   endCall: "/api/calls/current/end",
   transcript: "/api/transcript",
+  identity: "/api/identity",
+  location: "/api/location",
+  locations: "/api/locations",
   analyze: "/api/analyze",
   mood: "/api/mood",
   compliance: "/api/compliance",
@@ -16,8 +19,6 @@ export const API = {
   ticketCategories: "/api/tickets/categories",
   tickets: "/api/tickets",
   ask: "/api/ask",
-  customers: "/api/customers",
-  activeCustomer: "/api/customers/active",
   dashboard: "/api/dashboard",
   resetData: "/api/data/reset",
 };

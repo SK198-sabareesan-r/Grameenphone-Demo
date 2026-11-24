@@ -1,0 +1,21 @@
+{
+  "_note": "MOCK network status by area, built for the demo. It is not a live GP system. An area with notice = null only means no notice is on file here. It does not confirm the network is fine. aliases are what the agent may type, in English or Bangla.",
+  "areas": {
+    "Mirpur": {
+      "aliases": ["mirpur", "মিরপুর"],
+      "notice": {"status": "maintenance", "message": "Network maintenance in the Mirpur area", "until": "6:00 PM today"}
+    },
+    "Uttara": {
+      "aliases": ["uttara", "উত্তরা"],
+      "notice": {"status": "scheduled", "message": "Planned capacity upgrade in the Uttara area", "until": "2:00 AM tonight"}
+    },
+    "Gazipur": {
+      "aliases": ["gazipur", "joydebpur", "গাজীপুর"],
+      "notice": {"status": "outage", "message": "Mobile data outage after a fibre cut in the Gazipur area", "until": "9:00 PM today"}
+    },
+    "Dhanmondi": {"aliases": ["dhanmondi", "ধানমন্ডি"], "notice": null},
+    "Gulshan": {"aliases": ["gulshan", "গুলশান"], "notice": null},
+    "Chattogram": {"aliases": ["chattogram", "chittagong", "ctg", "চট্টগ্রাম", "চিটাগাং"], "notice": null},
+    "Savar": {"aliases": ["savar", "সাভার"], "notice": null}
+  }
+}

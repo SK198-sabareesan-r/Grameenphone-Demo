@@ -104,7 +104,10 @@ pytest                                        # no network, no provider calls
 | Tickets | POST | `/api/tickets` | Create a ticket |
 | Knowledge | POST | `/api/ask` | Ask Copilot, answers with sources |
 | Knowledge | GET | `/api/knowledge/articles` | Articles in the knowledge pack |
-| Customers | GET | `/api/customers` | Mock customers |
-| Customers | GET | `/api/customers/{id}` | One customer record |
-| Customers | GET / PUT | `/api/customers/active` | Customer used for the next call |
+| Identity | GET | `/api/identity` | Whether a customer is identified, the caller ID, and the card |
+| Identity | POST | `/api/identity` | The agent confirms the mobile number. Loads the customer card |
+| Identity | DELETE | `/api/identity` | Wrong customer: hide the card again |
+| Location | GET | `/api/locations` | Areas the agent can pick from |
+| Location | GET | `/api/location` | Registered and current location status |
+| Location | PUT | `/api/location` | The customer's current location. Checks the network status there |
 | Dashboard | GET | `/api/dashboard` | Adoption numbers |

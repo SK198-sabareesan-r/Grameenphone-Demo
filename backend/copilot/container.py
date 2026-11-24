@@ -5,14 +5,17 @@ from dataclasses import dataclass
 
 from config.settings import Settings
 from copilot.services.analyzer import TurnAnalyzer
-from copilot.services.assist import LiveAssist
+from copilot.services.areas import NetworkAreas
 from copilot.services.ask import AskCopilot
+from copilot.services.assist import LiveAssist
 from copilot.services.bedrock import BedrockClient
 from copilot.services.compliance import ComplianceEngine
 from copilot.services.customers import CustomerDirectory
 from copilot.services.dashboard import DashboardService
 from copilot.services.hub import PanelHub
+from copilot.services.identity import IdentityService
 from copilot.services.knowledge import KnowledgeBase
+from copilot.services.location import LocationService
 from copilot.services.nba import NbaCatalog
 from copilot.services.sessions import SessionRegistry
 from copilot.services.storage import CallStorage
@@ -39,6 +42,9 @@ class Container:
     hub: PanelHub
     registry: SessionRegistry
     customers: CustomerDirectory
+    areas: NetworkAreas
+    identity: IdentityService
+    location: LocationService
     knowledge: KnowledgeBase
     compliance: ComplianceEngine
     nba: NbaCatalog
@@ -60,11 +66,16 @@ def build_container(settings: Settings) -> Container:
     storage = CallStorage(settings)
     knowledge = KnowledgeBase(data / "knowledge" / "articles")
     nba = NbaCatalog(data / "mock" / "nba_rules.json")
+    customers = CustomerDirectory(settings)
+    areas = NetworkAreas(data / "mock" / "network_areas.json")
     return Container(
         settings=settings,
         hub=hub,
         registry=SessionRegistry(),
-        customers=CustomerDirectory(settings),
+        customers=customers,
+        areas=areas,
+        identity=IdentityService(customers, areas, hub),
+        location=LocationService(data / "mock" / "network_keywords.json", areas, hub),
         knowledge=knowledge,
         compliance=ComplianceEngine(data / "mock" / "compliance_rules.json"),
         nba=nba,

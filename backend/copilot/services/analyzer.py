@@ -58,7 +58,7 @@ class TurnAnalyzer:
         return render_prompt(
             self._template,
             customer=session.customer,
-            notice=session.notice,
+            network=session.network_view(),
             nba=self._nba.llm_view(),
             shown=list(session.suggestions),
             transcript=session.transcript_text(last=12),

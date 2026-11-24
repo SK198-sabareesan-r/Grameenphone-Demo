@@ -116,7 +116,7 @@ class LiveAssist:
             self._template,
             identity_verified="yes" if session.compliance.get("verify_identity") == "green" else "no",
             customer=session.customer,
-            notice=session.notice,
+            network=session.network_view(),
             articles=self._articles_block(articles),
             transcript=session.transcript_text(last=8),
             question=turn.text,

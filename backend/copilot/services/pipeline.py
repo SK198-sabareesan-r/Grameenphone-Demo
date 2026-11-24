@@ -22,6 +22,9 @@ def session_view(c: Container, session: CallSession) -> dict:
         "ended": session.ended_at is not None,
         "turns": [t.__dict__ for t in session.turns],
         "card": session.card(),
+        "caller_number": session.caller_number,
+        "current_location": session.current_location,
+        "location_prompt": session.location_prompt,
         "mood": session.mood,
         "compliance": c.compliance.view(session.compliance),
         "suggestions": list(session.suggestions.values()),
@@ -64,13 +67,12 @@ class CallPipeline:
 
     async def begin(self, call_sid: str | None, caller: str, live_audio: bool) -> None:
         c = self._c
-        customer = c.customers.resolve(caller)
+        # No customer is loaded here. The agent confirms the mobile number first (see identity_routes).
         self.session = c.registry.start(
             CallSession(
                 call_sid=call_sid or f"local-{uuid.uuid4().hex[:8]}",
-                customer=customer,
-                notice=c.customers.notice_for(customer),
                 compliance=c.compliance.initial_states(),
+                caller_number=caller,
             ),
             pipeline=self,
         )
@@ -116,9 +118,8 @@ class CallPipeline:
     async def _after_final_turn(self, session: CallSession, turn: Turn) -> None:
         c = self._c
         speaker, text = turn.speaker, turn.text
-        if speaker == "customer" and not session.card_visible:
-            session.card_visible = True
-            await c.hub.broadcast("card", session.card())
+        if speaker == "customer":
+            await c.location.on_customer_turn(session, text)  # prompts the agent to ask where the customer is
         if c.compliance.evaluate(session.compliance, speaker, text):
             await c.hub.broadcast("compliance", c.compliance.view(session.compliance))
         if speaker == "agent" and c.nba.mark_used_by_speech(session, text):

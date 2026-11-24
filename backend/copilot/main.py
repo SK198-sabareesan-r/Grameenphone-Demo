@@ -17,8 +17,9 @@ from copilot.api import (
     ask_routes,
     call_routes,
     compliance_routes,
-    customer_routes,
     dashboard_routes,
+    identity_routes,
+    location_routes,
     suggestion_routes,
     summary_routes,
     system_routes,
@@ -40,7 +41,8 @@ ROUTERS = (
     summary_routes,
     ticket_routes,
     ask_routes,
-    customer_routes,
+    identity_routes,
+    location_routes,
     dashboard_routes,
 )
 

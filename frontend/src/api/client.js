@@ -38,9 +38,10 @@ export const api = {
   ticketCategories: () => request(API.ticketCategories),
   createTicket: (ticket) => request(API.tickets, { method: "POST", body: ticket }),
   dashboard: () => request(API.dashboard),
-  customers: () => request(API.customers),
-  activeCustomer: () => request(API.activeCustomer),
-  setActiveCustomer: (customerId) =>
-    request(API.activeCustomer, { method: "PUT", body: { customer_id: customerId } }),
+  confirmIdentity: (mobileNumber) =>
+    request(API.identity, { method: "POST", body: { mobile_number: mobileNumber } }),
+  clearIdentity: () => request(API.identity, { method: "DELETE" }),
+  locations: () => request(API.locations),
+  setLocation: (area) => request(API.location, { method: "PUT", body: { area } }),
   resetData: () => request(API.resetData, { method: "POST" }),
 };

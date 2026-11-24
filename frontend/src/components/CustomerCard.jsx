@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { api } from "../api/client";
+import NetworkStatus from "./NetworkStatus";
+
 function Row({ label, children }) {
   return (
     <div className="kv">
@@ -7,25 +11,34 @@ function Row({ label, children }) {
   );
 }
 
-export default function CustomerCard({ card }) {
-  if (!card?.customer) {
-    return (
-      <div className="card">
-        <h2>Customer</h2>
-        <p className="empty">The customer card appears when the customer starts speaking.</p>
-      </div>
-    );
+// Only rendered after the agent has confirmed the mobile number.
+export default function CustomerCard({ card, callEnded }) {
+  const [error, setError] = useState("");
+  const { customer, registered_status: registered } = card;
+
+  async function wrongCustomer() {
+    setError("");
+    try {
+      await api.clearIdentity();
+    } catch (e) {
+      setError(e.message);
+    }
   }
-  const { customer, notice } = card;
+
   return (
     <div className="card">
-      <h2>Customer</h2>
+      <div className="card-head">
+        <h2>Customer</h2>
+        <button className="btn btn-ghost btn-small" onClick={wrongCustomer} disabled={callEnded}>
+          Not this customer
+        </button>
+      </div>
       <div className="customer-head">
         <div className="avatar">{customer.name.slice(0, 1)}</div>
         <div>
           <strong>{customer.name}</strong>
           <div className="muted small">
-            {customer.type} · {customer.tier} · {customer.area}
+            {customer.type} · {customer.tier} · {customer.msisdn}
           </div>
         </div>
       </div>
@@ -44,14 +57,9 @@ export default function CustomerCard({ card }) {
           ? customer.open_tickets.map((t) => `${t.id}: ${t.topic} (${t.age})`).join("; ")
           : "None"}
       </Row>
-      {notice && (
-        <div className="notice">
-          <strong>Network notice</strong>
-          <span>
-            {notice.message}. Until {notice.until}.
-          </span>
-        </div>
-      )}
+      <p className="section-label">Network at the registered location</p>
+      <NetworkStatus status={registered} />
+      {error && <p className="error">{error}</p>}
       <p className="mock-note">Mock data built for the demo, not a live GP system.</p>
     </div>
   );
