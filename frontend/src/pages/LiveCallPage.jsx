@@ -1,3 +1,4 @@
+import AnswerPanel from "../components/AnswerPanel";
 import AskCopilot from "../components/AskCopilot";
 import CompliancePanel from "../components/CompliancePanel";
 import CustomerCard from "../components/CustomerCard";
@@ -17,6 +18,12 @@ export default function LiveCallPage({ call, softphone }) {
       </section>
       <aside className="col-side">
         <CustomerCard card={call.card} />
+        <AnswerPanel
+          answers={call.answers}
+          pending={call.answerPending}
+          callActive={call.active}
+          callEnded={call.ended}
+        />
         <MoodPanel mood={call.mood} />
         <CompliancePanel items={call.compliance} />
         <Suggestions items={call.suggestions} />

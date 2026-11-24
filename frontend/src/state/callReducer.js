@@ -8,6 +8,8 @@ export const initialCallState = {
   mood: { customer: "neutral", agent: "neutral", tip: null },
   compliance: [],
   suggestions: [],
+  answers: [],
+  answerPending: null,
   summary: null,
   ticket: null,
   recordingUrl: "",
@@ -27,6 +29,7 @@ function fromView(view, previous) {
     mood: view.mood,
     compliance: view.compliance,
     suggestions: view.suggestions,
+    answers: view.answers || [],
     summary: view.summary,
     ticket: view.ticket,
     recordingUrl: view.recording_url,
@@ -39,6 +42,14 @@ function applyTranscript(state, data) {
   }
   const turns = state.turns.some((t) => t.id === data.id) ? state.turns : [...state.turns, data];
   return { ...state, active: true, turns, partials: { ...state.partials, [data.speaker]: "" } };
+}
+
+// A finished lookup replaces the one for the same sentence. Sentences that needed no lookup are not kept.
+function applyAnswer(state, entry) {
+  const pending = state.answerPending?.turn_id === entry.turn_id ? null : state.answerPending;
+  if (!entry.needs_lookup) return { ...state, answerPending: pending };
+  const answers = [...state.answers.filter((a) => a.turn_id !== entry.turn_id), entry].slice(-20);
+  return { ...state, answers, answerPending: pending };
 }
 
 export function callReducer(state, action) {
@@ -57,8 +68,12 @@ export function callReducer(state, action) {
       return { ...state, compliance: data };
     case "suggestions":
       return { ...state, suggestions: data };
+    case "answer.pending":
+      return { ...state, answerPending: data };
+    case "answer":
+      return applyAnswer(state, data);
     case "call.ended":
-      return { ...state, ended: true, partials: { customer: "", agent: "" } };
+      return { ...state, ended: true, answerPending: null, partials: { customer: "", agent: "" } };
     case "summary":
       return { ...state, summary: data };
     case "ticket.created":

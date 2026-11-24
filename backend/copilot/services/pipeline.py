@@ -8,7 +8,7 @@ import uuid
 
 from copilot.container import Container
 from copilot.services.sarvam_stt import SarvamStream
-from copilot.services.sessions import CallSession
+from copilot.services.sessions import CallSession, Turn
 
 log = logging.getLogger(__name__)
 TRACK_SPEAKER = {"inbound": "customer", "outbound": "agent"}
@@ -25,6 +25,7 @@ def session_view(c: Container, session: CallSession) -> dict:
         "mood": session.mood,
         "compliance": c.compliance.view(session.compliance),
         "suggestions": list(session.suggestions.values()),
+        "answers": session.answers,
         "summary": session.summary,
         "ticket": session.ticket,
         "recording_url": session.recording_url,
@@ -110,10 +111,11 @@ class CallPipeline:
             return
         turn = session.add_turn(speaker, text)
         await c.hub.broadcast("transcript", {**turn.__dict__, "kind": "final"})
-        await self._after_final_turn(session, speaker, text)
+        await self._after_final_turn(session, turn)
 
-    async def _after_final_turn(self, session: CallSession, speaker: str, text: str) -> None:
+    async def _after_final_turn(self, session: CallSession, turn: Turn) -> None:
         c = self._c
+        speaker, text = turn.speaker, turn.text
         if speaker == "customer" and not session.card_visible:
             session.card_visible = True
             await c.hub.broadcast("card", session.card())
@@ -122,6 +124,7 @@ class CallPipeline:
         if speaker == "agent" and c.nba.mark_used_by_speech(session, text):
             await c.hub.broadcast("suggestions", list(session.suggestions.values()))
         c.analyzer.schedule(session)
+        c.assist.schedule(session, turn)  # customer sentences only; the service decides what to skip
 
     # ---- End of call ----
 

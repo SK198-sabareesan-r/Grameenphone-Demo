@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from config.settings import get_settings
 from copilot.api import (
     analysis_routes,
+    answer_routes,
     ask_routes,
     call_routes,
     compliance_routes,
@@ -33,6 +34,7 @@ ROUTERS = (
     call_routes,
     transcript_routes,
     analysis_routes,
+    answer_routes,
     compliance_routes,
     suggestion_routes,
     summary_routes,

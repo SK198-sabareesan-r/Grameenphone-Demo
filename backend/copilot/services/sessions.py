@@ -3,6 +3,8 @@
 import time
 from dataclasses import dataclass, field
 
+MAX_ANSWERS = 20
+
 
 @dataclass
 class Turn:
@@ -27,6 +29,7 @@ class CallSession:
     )
     mood_history: list[str] = field(default_factory=list)
     suggestions: dict[str, dict] = field(default_factory=dict)
+    answers: list[dict] = field(default_factory=list)
     summary: dict | None = None
     ticket: dict | None = None
     recording_url: str = ""
@@ -35,6 +38,13 @@ class CallSession:
         turn = Turn(id=len(self.turns) + 1, speaker=speaker, text=text, ts=time.time())
         self.turns.append(turn)
         return turn
+
+    def set_answer(self, entry: dict) -> None:
+        """Keep the lookup for a customer sentence. Sentences that needed no lookup are not stored."""
+        if not entry.get("needs_lookup"):
+            return
+        self.answers = [a for a in self.answers if a["turn_id"] != entry["turn_id"]] + [entry]
+        self.answers = self.answers[-MAX_ANSWERS:]
 
     def transcript_text(self, last: int | None = None) -> str:
         turns = self.turns[-last:] if last else self.turns
@@ -54,6 +64,7 @@ class CallSession:
             "turns": [t.__dict__ for t in self.turns],
             "mood_history": self.mood_history,
             "suggestions": list(self.suggestions.values()),
+            "answers": self.answers,
             "compliance": self.compliance,
             "summary": self.summary,
             "ticket": self.ticket,

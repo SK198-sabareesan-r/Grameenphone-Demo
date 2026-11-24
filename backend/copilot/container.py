@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from config.settings import Settings
 from copilot.services.analyzer import TurnAnalyzer
+from copilot.services.assist import LiveAssist
 from copilot.services.ask import AskCopilot
 from copilot.services.bedrock import BedrockClient
 from copilot.services.compliance import ComplianceEngine
@@ -42,6 +43,7 @@ class Container:
     compliance: ComplianceEngine
     nba: NbaCatalog
     analyzer: TurnAnalyzer
+    assist: LiveAssist
     summarizer: CallSummarizer
     ask: AskCopilot
     tickets: TicketStore
@@ -67,6 +69,7 @@ def build_container(settings: Settings) -> Container:
         compliance=ComplianceEngine(data / "mock" / "compliance_rules.json"),
         nba=nba,
         analyzer=TurnAnalyzer(settings, bedrock, nba, hub),
+        assist=LiveAssist(settings, bedrock, knowledge, hub),
         summarizer=CallSummarizer(settings, bedrock, hub, storage),
         ask=AskCopilot(settings, bedrock, knowledge),
         tickets=TicketStore(settings),

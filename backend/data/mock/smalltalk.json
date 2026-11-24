@@ -1,0 +1,10 @@
+{
+  "_note": "Phrases that never need a lookup. A sentence is skipped when it matches one exactly, or when it is at most max_words long and made only of words from these phrases. The model still makes the final call for everything else.",
+  "max_words": 3,
+  "phrases": [
+    "hello", "hi", "hey", "hello hello", "assalamu alaikum", "assalamualaikum", "salam", "walaikum assalam",
+    "ok", "okay", "ok ok", "thik ache", "thik achhe", "accha", "acha", "haan", "ha", "ji", "jee", "yes", "no", "hmm",
+    "thanks", "thank you", "dhonnobad", "dhanyabad", "shukriya", "bye", "bye bye", "allah hafez", "khuda hafez",
+    "ঠিক আছে", "আচ্ছা", "হ্যালো", "হ্যাঁ", "জি", "ধন্যবাদ", "আসসালামু আলাইকুম", "ওয়ালাইকুম আসসালাম", "আল্লাহ হাফেজ"
+  ]
+}
