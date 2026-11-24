@@ -201,16 +201,6 @@
   text-align: right;
 }
 
-.notice {
-  margin-top: 10px;
-  padding: 8px 10px;
-  border-left: 4px solid var(--gp-warn);
-  background: #fffbeb;
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-}
-
 .mock-note {
   margin: 10px 0 0;
   font-size: 12px;
@@ -543,6 +533,107 @@
   cursor: pointer;
   color: var(--gp-blue-dark);
   font-weight: 600;
+}
+
+/* Identity and network check */
+.identity-form,
+.location-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.identity-form {
+  flex-direction: column;
+}
+
+.identity-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.identity-form .btn {
+  align-self: flex-start;
+}
+
+.location-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-label {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gp-grey);
+}
+
+.prompt-banner {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-left: 4px solid var(--gp-warn);
+  background: #fffbeb;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.net-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-left: 4px solid var(--gp-border);
+  background: var(--gp-surface);
+  border-radius: 6px;
+}
+
+.net-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.net-badge {
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--gp-border);
+  color: var(--gp-ink);
+}
+
+.net-maintenance {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.net-maintenance .net-badge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.net-scheduled {
+  border-left-color: var(--gp-blue);
+  background: var(--gp-blue-soft);
+}
+
+.net-scheduled .net-badge {
+  background: #bfd8ea;
+  color: var(--gp-blue-deep);
+}
+
+.net-outage {
+  border-left-color: var(--gp-danger);
+  background: #fef2f2;
+}
+
+.net-outage .net-badge {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 @media (max-width: 1000px) {

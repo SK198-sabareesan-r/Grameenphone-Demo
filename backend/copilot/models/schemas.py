@@ -39,10 +39,18 @@ class TicketRequest(BaseModel):
     follow_up: str = ""
 
 
-class ActiveCustomerRequest(BaseModel):
-    customer_id: str
-
-
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=256)
+
+
+class IdentityRequest(BaseModel):
+    """The mobile number the agent has confirmed with the customer."""
+
+    mobile_number: str = Field(min_length=6, max_length=24)
+
+
+class LocationRequest(BaseModel):
+    """Where the customer says they are right now."""
+
+    area: str = Field(min_length=2, max_length=80)

@@ -155,12 +155,12 @@ def test_speakers_land_in_their_own_context_files(client, settings):
 
 
 def test_call_started_resolves_the_customer_and_never_stores_the_phone_number(client, settings):
-    client.post(C_URL, json=call_event("call_started", data={"from_number": "+8801700123456", "direction": "inbound"}), headers=TOKEN)
+    client.post(C_URL, json=call_event("call_started", data={"from_number": "+8801200000001", "direction": "inbound"}), headers=TOKEN)
     customer = read_json(settings, "customer_context")
     assert customer["customer"]["id"] == customer["customer_id"] == "rahim"
-    assert customer["caller_ref"] == "***3456"
+    assert customer["caller_ref"] == "***0001"
     for name in ("call_events", "customer_context"):
-        assert "+8801700123456" not in json.dumps(read_json(settings, name))
+        assert "+8801200000001" not in json.dumps(read_json(settings, name))
     assert client.get("/api/calls/current").json()["call"]["agent_mode"] == "ai_agent"
 
 

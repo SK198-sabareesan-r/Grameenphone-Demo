@@ -234,20 +234,15 @@ def test_role_checks(settings, fake_bedrock):
 
 def test_demo_controls_are_disabled_by_default(client):
     assert client.post("/api/data/reset").status_code == 403
-    assert client.put("/api/customers/active", json={"customer_id": "nusrat"}).status_code == 403
     assert client.post("/api/data/reset", headers=NO_AUTH).status_code == 401
-    # Read-only customer routes stay available to signed-in agents.
-    assert client.get("/api/customers").status_code == 200
-    assert client.get("/api/customers/active").json() == {"active": "rahim"}
 
 
 def test_demo_controls_work_when_enabled(runtime_dir, users_file, fake_bedrock):
     settings = make_settings(runtime_dir, demo_controls_enabled=True)
     with open_client(settings, fake_bedrock) as c:
         assert c.get("/api/auth/me").json()["demo_controls_enabled"] is True
-        assert c.put("/api/customers/active", json={"customer_id": "nusrat"}).json() == {"active": "nusrat"}
         c.post("/api/transcript", json={"speaker": "customer", "text": "Hello"})
-        assert c.get("/api/calls/current").json()["call"]["card"]["customer"]["id"] == "nusrat"
+        assert c.get("/api/calls/current").json()["call"] is not None
         assert c.post("/api/data/reset").json() == {"ok": True}
         assert c.get("/api/calls/current").json() == {"call": None}
         assert c.post("/api/data/reset", headers=NO_AUTH).status_code == 401

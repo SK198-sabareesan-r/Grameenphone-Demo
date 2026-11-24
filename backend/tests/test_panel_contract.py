@@ -7,7 +7,7 @@ from copilot.services.summarizer import EMPTY_DRAFT
 from tests.conftest import FAST_ARN
 
 SESSION_VIEW_KEYS = {
-    "call_sid", "ended", "status", "agent_mode", "turns", "card", "mood", "compliance",
+    "call_sid", "ended", "status", "agent_mode", "caller_number", "current_location", "location_prompt", "turns", "card", "mood", "compliance",
     "suggestions", "answers", "summary", "ticket", "recording_url",
 }
 FINAL_TURN_KEYS = {"id", "speaker", "text", "ts", "kind"}
@@ -49,10 +49,8 @@ def test_panel_stream_sends_no_snapshot_when_there_is_no_call_then_live_events(c
         assert set(transcript["data"]) == FINAL_TURN_KEYS
         assert transcript["data"]["kind"] == "final" and transcript["data"]["speaker"] == "customer"
 
-        card = ws.receive_json()
-        assert card["type"] == "card"
-        assert set(card["data"]) == {"customer", "notice"}
-        assert card["data"]["customer"]["id"] == "rahim"
+        prompt = ws.receive_json()  # no card: the agent confirms the mobile number first. A network complaint asks for the location.
+        assert prompt["type"] == "location.prompt"
 
         def next_event():  # the live lookup (answer.*) runs alongside analysis; order is not fixed
             while (msg := ws.receive_json())["type"].startswith("answer"):
@@ -109,7 +107,7 @@ def test_rest_routes_the_frontend_calls_exist(client):
     assert {
         "/api/health", "/api/calls/current", "/api/calls/current/end",
         "/api/transcript", "/api/analyze", "/api/summary", "/api/tickets", "/api/tickets/categories",
-        "/api/ask", "/api/suggestions/{suggestion_id}/use", "/api/customers", "/api/customers/active",
+        "/api/ask", "/api/suggestions/{suggestion_id}/use", "/api/identity", "/api/locations", "/api/location",
         "/api/dashboard", "/api/data/reset",
     } <= paths
 

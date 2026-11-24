@@ -89,12 +89,11 @@ async def test_ai_agent_turns_do_not_trigger_analysis_but_are_in_its_context(con
     assert "HUMAN AGENT" in prompt  # the prompt explains the three labels
 
 
-async def test_the_customer_card_still_appears_on_the_first_customer_line(container, events):
+async def test_roles_never_load_the_customer_card(container, events):
     pipeline = await ensure_pipeline(container)
     await pipeline.ingest(AI_AGENT, "final", "Welcome to Grameenphone.")
-    assert events.of("card") == []
     await pipeline.ingest(CUSTOMER, "final", "Net kaj korche na.")
-    assert len(events.of("card")) == 1
+    assert events.of("card") == []  # only the agent confirming the mobile number does that
 
 
 async def test_partials_carry_the_role(container, events):

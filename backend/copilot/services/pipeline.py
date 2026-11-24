@@ -29,6 +29,9 @@ def session_view(c: Container, session: CallSession) -> dict:
         "agent_mode": session.agent_mode,
         "turns": [t.__dict__ for t in session.turns],
         "card": session.card(),
+        "caller_number": session.caller_number,
+        "current_location": session.current_location,
+        "location_prompt": session.location_prompt,
         "mood": session.mood,
         "compliance": c.compliance.view(session.compliance),
         "suggestions": list(session.suggestions.values()),
@@ -61,14 +64,13 @@ class CallPipeline:
         if source not in SOURCES:
             raise ValueError(f"unknown call source {source!r}")
         c = self._c
-        customer = c.customers.resolve(caller)
         self.source = source
+        # No customer is loaded here. The agent confirms the mobile number first (see identity_routes).
         self.session = c.registry.start(
             CallSession(
                 call_sid=call_sid or f"local-{uuid.uuid4().hex[:8]}",
-                customer=customer,
-                notice=c.customers.notice_for(customer),
                 compliance=c.compliance.initial_states(),
+                caller_number=caller,
                 agent_mode=agent_mode,  # voice calls start with the AI agent: the first panel update already says so
             ),
             pipeline=self,
@@ -119,9 +121,8 @@ class CallPipeline:
         suggestions and do not trigger analysis on their own (they are context for the next one)."""
         c = self._c
         role, text = turn.speaker, turn.text
-        if role == CUSTOMER and not session.card_visible:
-            session.card_visible = True
-            await c.hub.broadcast("card", session.card())
+        if role == CUSTOMER:
+            await c.location.on_customer_turn(session, text)  # prompts the agent to ask where the customer is
         if role in COMPLIANCE_SPEAKERS and c.compliance.evaluate(session.compliance, role, text):
             await c.hub.broadcast("compliance", c.compliance.view(session.compliance))
         if role in SUGGESTION_SPEAKERS and c.nba.mark_used_by_speech(session, text):

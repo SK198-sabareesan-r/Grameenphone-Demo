@@ -26,7 +26,7 @@ from app.services.voice.handoff import HandoffService  # noqa: E402
 
 CALL = "5401fd2e-6344-40df-a22c-c8ffea7a92e7"
 HUMAN_PHONE = "+8801911000999"
-CALLER = "+8801700123456"
+CALLER = "+8801200000001"
 
 
 class FakeVobiz:
@@ -153,7 +153,7 @@ async def test_the_whole_call_is_stored_in_json_and_shown_on_the_panel(wired):
     customer, ai, human = (stored[n] for n in ("customer_context", "ai_agent_context", "human_agent_context"))
     for doc in (customer, ai, human, stored["call_events"]):
         assert (doc["call_id"], doc["session_id"], doc["customer_id"]) == (CALL, f"sess-{CALL}", "rahim")
-    assert customer["initial_intent"] == "I need help with my mobile recharge." and customer["caller_ref"] == "***3456"
+    assert customer["initial_intent"] == "I need help with my mobile recharge." and customer["caller_ref"] == "***0001"
     assert len(customer["conversation_history_refs"]) == 3  # three customer finals
     assert [m["text"] for m in ai["messages"]] == ["I can help with that. Which pack did you buy?"]
     assert ai["handoff"]["reason"].startswith("Customer asks for a refund") and ai["handoff"]["requested_at"]

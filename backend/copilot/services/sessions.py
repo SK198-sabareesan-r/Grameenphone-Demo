@@ -19,13 +19,16 @@ class Turn:
 @dataclass
 class CallSession:
     call_sid: str
-    customer: dict | None
-    notice: dict | None
     compliance: dict[str, str]
+    caller_number: str = ""  # only a hint for the agent; nothing is loaded from it
+    customer: dict | None = None  # set only when the agent confirms the mobile number
+    registered_status: dict | None = None  # network status at the area registered with that number
+    current_location: dict | None = None  # network status where the customer says they are now
+    location_prompt: bool = False
+    identified_at: float | None = None
     started_at: float = field(default_factory=time.time)
     ended_at: float | None = None
     turns: list[Turn] = field(default_factory=list)
-    card_visible: bool = False
     mood: dict = field(
         default_factory=lambda: {"customer": "neutral", "agent": "neutral", "tip": None}
     )
@@ -45,6 +48,22 @@ class CallSession:
         self.turns.append(turn)
         return turn
 
+    def identify(self, customer: dict, registered_status: dict) -> None:
+        self.customer = customer
+        self.registered_status = registered_status
+        self.identified_at = time.time()
+
+    def clear_identity(self) -> None:
+        self.customer = self.registered_status = self.identified_at = None
+
+    def set_location(self, status: dict) -> None:
+        self.current_location = status
+        self.location_prompt = False
+
+    def network_view(self) -> dict:
+        """Both network statuses, for the model. Either can be None."""
+        return {"registered_location": self.registered_status, "current_location": self.current_location}
+
     def set_answer(self, entry: dict) -> None:
         """Keep the lookup for a customer sentence. Sentences that needed no lookup are not stored."""
         if not entry.get("needs_lookup"):
@@ -60,14 +79,17 @@ class CallSession:
         )
 
     def card(self) -> dict | None:
-        if not self.card_visible:
+        """The customer card. None until the agent has confirmed the mobile number."""
+        if self.customer is None:
             return None
-        return {"customer": self.customer, "notice": self.notice}
+        return {"customer": self.customer, "registered_status": self.registered_status}
 
     def to_record(self) -> dict:
         return {
             "call_sid": self.call_sid,
             "customer_id": (self.customer or {}).get("id"),
+            "identified_at": self.identified_at,
+            "current_location": self.current_location,
             "started_at": self.started_at,
             "ended_at": self.ended_at,
             "turns": [t.__dict__ for t in self.turns],

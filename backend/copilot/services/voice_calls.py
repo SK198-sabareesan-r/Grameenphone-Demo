@@ -131,7 +131,9 @@ async def handle_call_event(c: Container, ev: CallEventIn) -> str:
     caller_number = data.pop("from_number", None)  # used once to find the customer, never stored
     customer = None
     if ev.type == "call_started":
-        customer = c.customers.resolve(caller_number or "")
+        # The caller ID only SUGGESTS who is calling: the panel still waits for the agent to confirm the mobile number
+        # (identity_routes). The stored files get the matching customer id so all five files can be joined.
+        customer = c.customers.find_by_number(caller_number) if caller_number else None
         if customer:
             data["customer_name"] = customer.get("name")
         data["caller_ref"] = mask_number(caller_number)
@@ -159,7 +161,8 @@ async def handle_call_event(c: Container, ev: CallEventIn) -> str:
     if ev.type == "call_started":
 
         def mutate_customer(doc: dict) -> None:
-            doc["customer"] = customer
+            # Only id and name, and marked as matched by caller ID, not confirmed by the agent.
+            doc["customer"] = {"id": customer["id"], "name": customer.get("name"), "matched_by": "caller_id"} if customer else None
             doc["caller_ref"] = data.get("caller_ref")
 
         await c.conversations.update(cid, store.CUSTOMER, mutate_customer, **kw)

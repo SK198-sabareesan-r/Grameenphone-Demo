@@ -9,7 +9,10 @@ export const initialCallState = {
   turns: [],
   // One in-progress line per participant: customer, AI agent (voice bot), human agent.
   partials: { customer: "", ai_agent: "", human_agent: "" },
+  callerNumber: "",
   card: null,
+  currentLocation: null,
+  locationPrompt: false,
   mood: { customer: "neutral", agent: "neutral", tip: null },
   compliance: [],
   suggestions: [],
@@ -30,7 +33,10 @@ function fromView(view) {
     status: view.status ?? null,
     agentMode: view.agent_mode ?? null,
     turns: view.turns,
+    callerNumber: view.caller_number || "",
     card: view.card,
+    currentLocation: view.current_location || null,
+    locationPrompt: Boolean(view.location_prompt),
     mood: view.mood,
     compliance: view.compliance,
     suggestions: view.suggestions,
@@ -66,7 +72,11 @@ export function callReducer(state, action) {
     case "transcript":
       return applyTranscript(state, data);
     case "card":
-      return { ...state, card: data };
+      return { ...state, card: data }; // null again when the agent picked the wrong customer
+    case "location":
+      return { ...state, currentLocation: data.current_location, locationPrompt: false };
+    case "location.prompt":
+      return { ...state, locationPrompt: Boolean(data.show) };
     case "mood":
       return { ...state, mood: data };
     case "compliance":

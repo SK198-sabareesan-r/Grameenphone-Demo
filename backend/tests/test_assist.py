@@ -49,7 +49,7 @@ def make(bedrock: FakeBedrock):
 
 def session_with(*lines: tuple[str, str]) -> CallSession:
     session = CallSession(
-        call_sid="CA1", customer=CUSTOMER, notice=None, compliance={"verify_identity": "idle"}
+        call_sid="CA1", customer=CUSTOMER, compliance={"verify_identity": "idle"}
     )
     for speaker, text in lines:
         session.add_turn(speaker, text)

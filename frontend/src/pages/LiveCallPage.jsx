@@ -3,7 +3,9 @@ import AskCopilot from "../components/AskCopilot";
 import CallControls from "../components/CallControls";
 import CompliancePanel from "../components/CompliancePanel";
 import CustomerCard from "../components/CustomerCard";
+import IdentityForm from "../components/IdentityForm";
 import MoodPanel from "../components/MoodPanel";
+import NetworkCheck from "../components/NetworkCheck";
 import SummaryTicket from "../components/SummaryTicket";
 import Suggestions from "../components/Suggestions";
 import Transcript from "../components/Transcript";
@@ -17,7 +19,18 @@ export default function LiveCallPage({ call }) {
         <SummaryTicket call={call} />
       </section>
       <aside className="col-side">
-        <CustomerCard card={call.card} />
+        {call.card ? (
+          <CustomerCard card={call.card} callEnded={call.ended} />
+        ) : (
+          <IdentityForm callerNumber={call.callerNumber} callActive={call.active} callEnded={call.ended} />
+        )}
+        <NetworkCheck
+          prompt={call.locationPrompt}
+          current={call.currentLocation}
+          registered={call.card?.registered_status}
+          callActive={call.active}
+          callEnded={call.ended}
+        />
         <AnswerPanel
           answers={call.answers}
           pending={call.answerPending}

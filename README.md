@@ -1,4 +1,4 @@
-﻿# Grameenphone AI Copilot (demo)
+# Grameenphone AI Copilot (demo)
 
 ```
 backend/    Copilot FastAPI service: sign-in, live panel events, Amazon Bedrock analysis, mock GP data
@@ -116,9 +116,12 @@ All routes need a signed-in agent except where marked public.
 | Tickets | POST | `/api/tickets` | Create a ticket |
 | Knowledge | POST | `/api/ask` | Ask Copilot, answers with sources |
 | Knowledge | GET | `/api/knowledge/articles` | Articles in the knowledge pack |
-| Customers | GET | `/api/customers` | Mock customers |
-| Customers | GET | `/api/customers/{id}` | One customer record |
-| Customers | GET / PUT | `/api/customers/active` | Customer used for the next call (PUT: demo controls only) |
+| Identity | GET | `/api/identity` | Whether a customer is identified, the caller ID, and the card |
+| Identity | POST | `/api/identity` | The agent confirms the mobile number. Loads the customer card |
+| Identity | DELETE | `/api/identity` | Wrong customer: hide the card again |
+| Location | GET | `/api/locations` | Areas the agent can pick from |
+| Location | GET | `/api/location` | Registered and current location status |
+| Location | PUT | `/api/location` | The customer's current location. Checks the network status there |
 | Dashboard | GET | `/api/dashboard` | Adoption numbers |
 
 ## Live voice calls (M3)

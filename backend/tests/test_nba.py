@@ -19,7 +19,7 @@ def catalog() -> NbaCatalog:
 
 @pytest.fixture
 def session() -> CallSession:
-    return CallSession(call_sid="t-1", customer=None, notice=None, compliance={})
+    return CallSession(call_sid="t-1", compliance={})
 
 
 def test_llm_view_exposes_only_id_and_when(catalog):

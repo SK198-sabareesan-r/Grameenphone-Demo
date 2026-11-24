@@ -26,8 +26,9 @@ from copilot.api import (
     auth_routes,
     call_routes,
     compliance_routes,
-    customer_routes,
     dashboard_routes,
+    identity_routes,
+    location_routes,
     panel_routes,
     suggestion_routes,
     summary_routes,
@@ -58,7 +59,8 @@ AGENT_ROUTERS = (
     summary_routes,
     ticket_routes,
     ask_routes,
-    customer_routes,
+    identity_routes,
+    location_routes,
     dashboard_routes,
 )
 ROUTERS = SELF_PROTECTED_ROUTERS + AGENT_ROUTERS

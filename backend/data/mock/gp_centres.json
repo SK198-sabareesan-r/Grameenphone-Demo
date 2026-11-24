@@ -1,0 +1,112 @@
+[
+ {
+  "area": "Mirpur",
+  "name": "Grameenphone Center Mirpur-1",
+  "kind": "GP Centre",
+  "address": "Grameenphone Center, Capital Tower Shopping Complex, Ground Floor, Shop # 17-18, 5 Darus Salam Road, Mirpur-1, Dhaka-1216",
+  "hours": "11:00 AM- 7:00 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Mirpur",
+  "name": "Grameenphone Center Mirpur-11",
+  "kind": "GP Centre",
+  "address": "Plot-12, Main Road-03, Section-7, Mirpur 11, Dhaka-1216",
+  "hours": "10 AM- 6 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Uttara",
+  "name": "Grameenphone Center Uttara",
+  "kind": "GP Centre",
+  "address": "Paradise Tower (Ground Floor),Plot # 11, Road # 02, Sector # 03, Uttara, Dhaka-1230.",
+  "hours": "9 AM- 7 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Uttara",
+  "name": "Grameenphone Center Sonargaon Janapath",
+  "kind": "GP Centre",
+  "address": "AK Plaza (1st Floor), Plot: 01, Sonargaon Janapath Road, Sector: 9, Uttara, Dhaka-1230.",
+  "hours": "10 AM- 6 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Uttara",
+  "name": "Grameenphone Center Airport Departure Dhaka",
+  "kind": "GP Centre",
+  "address": "Terminal -2, 1st Floor, Dhaka Int’l Airport Departure Area, Uttara, Dhaka",
+  "hours": "24 Hours Open",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Dhanmondi",
+  "name": "Grameenphone Center Hatirpul",
+  "kind": "GP Centre",
+  "address": "212/260,Nahar Plaza,Hatirpul,Dhanmondi,Dhaka,1205",
+  "hours": "11:00 AM- 7:00 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Dhanmondi",
+  "name": "Grameenphone Center Rapa Plaza",
+  "kind": "GP Centre",
+  "address": "House: 01, Road: 16 (New) / 27 (Old), Shop: 02, Ground Floor, Rapa Plaza, Dhanmondi, Dhaka-1209",
+  "hours": "11:00 AM- 7:00 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Dhanmondi",
+  "name": "Grameenphone Center Shimanto Square",
+  "kind": "GP Centre",
+  "address": "1st Floor, Shimanto Square, Dhanmondi, Dhaka, Bangladesh, 1205",
+  "hours": "11:00 AM- 7:00 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Gulshan",
+  "name": "Grameenphone Experience, Gulshan",
+  "kind": "GP Centre",
+  "address": "Ground floor, Rangs Arcade, 153/A Gulshan North Avenue, Dhaka 1212",
+  "hours": "9 AM- 7 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Savar",
+  "name": "Grameenphone Center Savar",
+  "kind": "GP Centre",
+  "address": "Shop:3, Savar City Center, Savar Bus Stand, Savar, Dhaka.",
+  "hours": "10 AM- 6 PM",
+  "type": "public",
+  "source_url": "https://www.grameenphone.com/personal/customer-service/store-locator",
+  "fetched": "2026-11-23"
+ },
+ {
+  "area": "Chattogram",
+  "name": "GP Centre, Chattogram (sample)",
+  "kind": "GP Centre",
+  "address": "Sample entry. Not a real GP Centre address.",
+  "hours": null,
+  "type": "sample",
+  "source_url": "",
+  "fetched": ""
+ }
+]

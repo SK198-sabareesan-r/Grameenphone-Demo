@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     s3_bucket: str = ""
     s3_prefix: str = "copilot/calls"
     s3_knowledge_prefix: str = "knowledge/pdf"
+    dynamodb_table_prefix: str = "gp-copilot-"
     bedrock_inference_profile_arn_fast: str = ""
     bedrock_inference_profile_arn_summary: str = ""
 
@@ -77,7 +78,6 @@ class Settings(BaseSettings):
     assist_max_articles: int = 4
 
     # Demo behaviour
-    demo_default_customer_id: str = "rahim"
     demo_phone_map: str = ""
     ticket_start_number: int = 10234
 

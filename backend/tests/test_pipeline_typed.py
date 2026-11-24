@@ -10,8 +10,7 @@ async def test_a_typed_line_starts_a_local_text_only_call(container, events):
     pipeline = await ensure_pipeline(container)
     session = pipeline.session
     assert session.call_sid.startswith("local-")
-    assert session.customer["id"] == "rahim"  # DEMO_DEFAULT_CUSTOMER_ID
-    assert session.notice is not None  # Rahim's area has a network notice
+    assert session.customer is None  # nobody is identified until the agent confirms the mobile number
     assert pipeline.source == "typed"  # text-only: the Copilot opens no audio or speech socket
     assert container.registry.current is session and container.registry.pipeline is pipeline
     assert events.names() == ["call.started"]
@@ -48,16 +47,14 @@ async def test_empty_text_is_ignored(container, events):
     assert events.of("transcript") == []
 
 
-async def test_the_customer_card_appears_once_on_the_first_customer_line(container, events):
+async def test_no_customer_card_appears_until_the_agent_confirms_the_mobile_number(container, events):
     pipeline = await ensure_pipeline(container)
     await pipeline.ingest("agent", "final", "Assalamu alaikum.")
-    assert events.of("card") == []  # an agent line does not reveal the card
     await pipeline.ingest("customer", "final", "Bhai, net kaj korche na.")
-    await pipeline.ingest("customer", "final", "2 din dhore.")
     await settle()
-    cards = events.of("card")
-    assert len(cards) == 1 and cards[0]["customer"]["id"] == "rahim"
-    assert pipeline.session.card() == cards[0]
+    assert events.of("card") == [] and pipeline.session.card() is None  # customer speech never loads a customer
+    card = await container.identity.confirm(pipeline.session, "01200000001")
+    assert card["customer"]["id"] == "rahim" and events.of("card") == [card]
 
 
 async def test_each_final_line_schedules_analysis_with_the_fast_model(container, fake_bedrock):
@@ -80,7 +77,7 @@ async def test_finish_is_idempotent_blocks_new_lines_and_saves_the_record(contai
     assert len(fake_bedrock.calls_for(SUMMARY_ARN)) == 1
     saved = runtime_dir / "calls" / f"{pipeline.session.call_sid}.json"
     record = json.loads(saved.read_text(encoding="utf-8"))
-    assert record["customer_id"] == "rahim" and record["summary"]["category"] == "Network"
+    assert record["customer_id"] is None and record["summary"]["category"] == "Network"  # nobody was identified
 
 
 async def test_a_new_pipeline_replaces_the_call_on_screen(container, events):
@@ -92,15 +89,14 @@ async def test_a_new_pipeline_replaces_the_call_on_screen(container, events):
     assert container.registry.get("call-1") is first.session  # older calls stay reachable by id
 
 
-async def test_phone_map_and_ui_override_pick_the_customer(runtime_dir, fake_bedrock):
+async def test_a_customer_is_found_only_by_mobile_number_and_the_phone_map_adds_team_phones(runtime_dir, fake_bedrock):
     from copilot.container import build_container
     from tests.conftest import make_settings
 
     c = build_container(make_settings(runtime_dir, demo_phone_map="+8801700000001:nusrat"), bedrock=fake_bedrock)
-    assert c.customers.resolve("+880 1700-000001")["id"] == "nusrat"
-    assert c.customers.resolve("+8801999999999")["id"] == "rahim"  # unmapped callers get the default
-    c.customers.override_id = "karim"
-    assert c.customers.resolve("+8801700000001")["id"] == "karim"
+    assert c.customers.find_by_number("+880 1200-000001")["id"] == "rahim"
+    assert c.customers.find_by_number("+8801700000001")["id"] == "nusrat"  # a verified team phone
+    assert c.customers.find_by_number("+8801999999999") is None  # no default customer any more
 
 
 def test_typed_line_api_validates_speaker_and_length(client):
