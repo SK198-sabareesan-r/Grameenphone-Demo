@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     data_retry_after_s: float = 30.0
     bedrock_inference_profile_arn_fast: str = ""
     bedrock_inference_profile_arn_summary: str = ""
+    # Bedrock Knowledge Base (retrieval). Empty means the app keeps using the local article search.
+    bedrock_kb_id: str = ""
+    bedrock_kb_top_k: int = 5
+    bedrock_kb_timeout_s: float = 6.0
+    bedrock_kb_rewrite_query: bool = True  # rewrite Bangla/Banglish sentences into an English query first
+    bedrock_kb_rewrite_timeout_s: float = 3.0
 
     # Sarvam
     sarvam_api_key: SecretStr = SecretStr("")

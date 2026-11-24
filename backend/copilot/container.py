@@ -14,6 +14,7 @@ from copilot.services.compliance import ComplianceEngine
 from copilot.services.dashboard import DashboardService
 from copilot.services.hub import PanelHub
 from copilot.services.identity import IdentityService
+from copilot.services.kb_retriever import KnowledgeRetriever
 from copilot.services.knowledge import KnowledgeBase
 from copilot.services.location import LocationService
 from copilot.services.nba import NbaCatalog
@@ -46,6 +47,7 @@ class Container:
     identity: IdentityService
     location: LocationService
     knowledge: KnowledgeBase
+    retriever: KnowledgeRetriever
     compliance: ComplianceEngine
     nba: NbaCatalog
     analyzer: TurnAnalyzer
@@ -66,6 +68,7 @@ def build_container(settings: Settings) -> Container:
     hub, bedrock = PanelHub(), BedrockClient(settings)
     storage = CallStorage(settings, repo)
     knowledge = KnowledgeBase(data / "knowledge" / "articles")
+    retriever = KnowledgeRetriever(settings, bedrock, knowledge)
     nba = NbaCatalog(data / "mock" / "nba_rules.json", repo)
     areas = NetworkAreas(repo)
     return Container(
@@ -77,12 +80,13 @@ def build_container(settings: Settings) -> Container:
         identity=IdentityService(repo, areas, hub),
         location=LocationService(data / "mock" / "network_keywords.json", areas, hub),
         knowledge=knowledge,
+        retriever=retriever,
         compliance=ComplianceEngine(data / "mock" / "compliance_rules.json"),
         nba=nba,
         analyzer=TurnAnalyzer(settings, bedrock, nba, hub),
-        assist=LiveAssist(settings, bedrock, knowledge, hub, repo),
+        assist=LiveAssist(settings, bedrock, retriever, hub, repo),
         summarizer=CallSummarizer(settings, bedrock, hub, storage),
-        ask=AskCopilot(settings, bedrock, knowledge),
+        ask=AskCopilot(settings, bedrock, retriever),
         tickets=TicketService(settings, repo),
         storage=storage,
         dashboard=DashboardService(settings, storage),

@@ -14,7 +14,8 @@ from config.settings import Settings
 from copilot.repo.base import DataUnavailable, Repo
 from copilot.services.bedrock import BedrockClient
 from copilot.services.hub import PanelHub
-from copilot.services.knowledge import Article, KnowledgeBase
+from copilot.services.kb_retriever import KnowledgeRetriever
+from copilot.services.knowledge import Article
 from copilot.services.sessions import CallSession, Turn
 from copilot.utils.helpers import load_json, read_text, render_prompt
 
@@ -34,7 +35,7 @@ def _words(text: str) -> list[str]:
 
 class LiveAssist:
     def __init__(
-        self, settings: Settings, bedrock: BedrockClient, kb: KnowledgeBase, hub: PanelHub, repo: Repo
+        self, settings: Settings, bedrock: BedrockClient, kb: KnowledgeRetriever, hub: PanelHub, repo: Repo
     ) -> None:
         self._enabled = settings.assist_enabled
         self._model = settings.bedrock_inference_profile_arn_fast
@@ -97,7 +98,7 @@ class LiveAssist:
     # ---- one lookup ----
 
     async def _handle(self, session: CallSession, turn: Turn) -> dict:
-        articles = self._kb.search(self._query(session, turn), self._limit)
+        articles = await self._kb.search(self._query(session, turn), self._limit)
         await self._hub.broadcast("answer.pending", {"turn_id": turn.id, "question": turn.text})
         packs, centres = await self._reference(session)
         entry = await self._generate(session, turn, articles, packs, centres)
