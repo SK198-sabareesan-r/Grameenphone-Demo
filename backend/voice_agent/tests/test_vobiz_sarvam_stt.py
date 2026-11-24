@@ -603,7 +603,7 @@ def test_enabled_feature_installs_the_sarvam_factory_without_connecting(monkeypa
     assert isinstance(app.state.stream_handler.audio_sink_factory, SarvamSttSinkFactory)
     assert called == []  # no connection until a stream starts
     with TestClient(app) as client:
-        warnings = " ".join(client.get("/api/v1/vobiz/diagnostics").json()["warnings"])
+        warnings = " ".join(client.get("/api/vobiz/diagnostics").json()["warnings"])
     assert "VOBIZ_SARVAM_STT_ENABLED" in warnings
 
 
@@ -627,7 +627,7 @@ def test_endpoint_stream_to_transcript_with_metrics() -> None:
             for i, data in enumerate(frames, start=1):
                 stream.ws.send_json(media_msg(data, chunk=i, seq=i))
             wait_until(lambda: session.consumer.frames_processed == 23)
-            listing = client.get("/api/v1/vobiz/streams", headers=HEADERS).json()
+            listing = client.get("/api/vobiz/streams", headers=HEADERS).json()
             stt = listing["calls"][0]["current_stream"]["stt"]
             assert stt["stt_state"] == "open" and stt["audio_chunks_sent"] == 4 and stt["transcript_partials"] == 1
             assert SPOKEN not in json.dumps(listing) and KEY not in json.dumps(listing)
@@ -652,7 +652,7 @@ def test_endpoint_hangup_triggers_finalization() -> None:
                 stream.ws.send_json(media_msg(b"\x01\x00" * 320, chunk=i, seq=i))
             wait_until(lambda: session.consumer.frames_processed == 7)
             form = {"CallUUID": CALL, "Direction": "outbound", "Event": "Hangup"}
-            assert client.post("/api/v1/vobiz/hangup", data=form).status_code == 200
+            assert client.post("/api/vobiz/hangup", data=form).status_code == 200
             assert session.consumer.state == STOPPED
     assert any(e.is_final for e in pub.events) and fake.sockets[0].closed
     assert [json.loads(t)["event"] for t in fake.sockets[0].sent][-1] == "end"

@@ -289,7 +289,7 @@ async def test_default_client_uses_configured_timeout_and_base_url() -> None:
 
 def test_diagnostics_hides_credentials() -> None:
     client = TestClient(create_app(make_settings()))
-    response = client.get("/api/v1/vobiz/diagnostics")
+    response = client.get("/api/vobiz/diagnostics")
     assert response.status_code == 200
     assert TOKEN not in response.text
     assert AUTH_ID not in response.text  # only a masked hint is shown
@@ -302,7 +302,7 @@ def test_diagnostics_hides_credentials() -> None:
 
 def test_diagnostics_without_credentials_warns() -> None:
     client = TestClient(create_app(Settings()))
-    body = client.get("/api/v1/vobiz/diagnostics").json()
+    body = client.get("/api/vobiz/diagnostics").json()
     assert body["api"]["credentials_configured"] is False
     assert body["api"]["auth_id_hint"] is None
     warnings = " ".join(body["warnings"])
@@ -311,14 +311,14 @@ def test_diagnostics_without_credentials_warns() -> None:
 
 def test_diagnostics_warns_on_non_default_base_url() -> None:
     client = TestClient(create_app(make_settings(vobiz_base_url="http://localhost:9/api/v1")))
-    warnings = " ".join(client.get("/api/v1/vobiz/diagnostics").json()["warnings"])
+    warnings = " ".join(client.get("/api/vobiz/diagnostics").json()["warnings"])
     assert "differs from the documented value" in warnings
     assert "not https" in warnings
 
 
 def test_diagnostics_verify_without_credentials_returns_503() -> None:
     client = TestClient(create_app(Settings()))
-    response = client.get("/api/v1/vobiz/diagnostics?verify=true")
+    response = client.get("/api/vobiz/diagnostics?verify=true")
     assert response.status_code == 503
     assert response.json()["error"]["type"] == "vobiz_config_error"
 
@@ -333,21 +333,21 @@ def test_diagnostics_verify_success_and_failures(monkeypatch: pytest.MonkeyPatch
     client = TestClient(create_app(make_settings()))
 
     install(200, {"currency": "INR", "status": "active", "balance": 123.45, "available_balance": 100})
-    ok = client.get("/api/v1/vobiz/diagnostics?verify=true")
+    ok = client.get("/api/vobiz/diagnostics?verify=true")
     assert ok.status_code == 200
     assert ok.json()["connectivity"]["ok"] is True
     assert ok.json()["connectivity"]["account_status"] == "active"
     assert "123.45" not in ok.text and TOKEN not in ok.text
 
     install(401, {"error": "invalid credentials"})
-    bad = client.get("/api/v1/vobiz/diagnostics?verify=true")
+    bad = client.get("/api/vobiz/diagnostics?verify=true")
     assert bad.status_code == 502
     assert bad.json()["error"]["type"] == "vobiz_auth_error"
     assert bad.json()["error"]["upstream_status"] == 401
     assert TOKEN not in bad.text
 
     install(429, {"error": "slow"})
-    limited = client.get("/api/v1/vobiz/diagnostics?verify=true")
+    limited = client.get("/api/vobiz/diagnostics?verify=true")
     assert limited.status_code == 429
 
 
@@ -359,14 +359,14 @@ def test_diagnostics_verify_timeout_returns_504(monkeypatch: pytest.MonkeyPatch)
         return mock_client(handler, settings)
 
     monkeypatch.setattr(vobiz_config, "VobizClient", factory)
-    response = TestClient(create_app(make_settings())).get("/api/v1/vobiz/diagnostics?verify=true")
+    response = TestClient(create_app(make_settings())).get("/api/vobiz/diagnostics?verify=true")
     assert response.status_code == 504
     assert response.json()["error"]["type"] == "vobiz_timeout"
 
 
 def test_diagnostics_verify_bad_currency_returns_503() -> None:
     client = TestClient(create_app(make_settings()))
-    response = client.get("/api/v1/vobiz/diagnostics?verify=true&currency=bad1")
+    response = client.get("/api/vobiz/diagnostics?verify=true&currency=bad1")
     assert response.status_code == 503
     assert response.json()["error"]["type"] == "vobiz_config_error"
 
@@ -375,4 +375,4 @@ def test_existing_routes_still_registered() -> None:
     client = TestClient(create_app(Settings()))
     assert client.get("/health").json() == {"status": "ok"}
     paths = set(client.get("/openapi.json").json()["paths"])
-    assert {"/api/v1/vobiz/answer", "/api/v1/vobiz/hangup", "/api/v1/sarvam/diagnostics"} <= paths
+    assert {"/api/vobiz/answer", "/api/vobiz/hangup", "/api/sarvam/diagnostics"} <= paths

@@ -3,7 +3,7 @@
 Purpose: verify the byte order of Vobiz inbound L16 (M4.2). Guard rails:
 * Installed only when APP_ENV=development, VOBIZ_DEV_CAPTURE_ENABLED=true and a test destination
   is configured; otherwise no capture code runs at all.
-* Captures only calls registered as test calls: created through POST /api/v1/vobiz/calls (internal
+* Captures only calls registered as test calls: created through POST /api/vobiz/calls (internal
   token) to the configured test destination, or answered with that destination as `To`. Every
   other stream gets no sink ("unavailable"), so real customer calls are never captured.
 * At most VOBIZ_DEV_CAPTURE_MAX_SECONDS (hard cap 30 s) per stream, held in memory (bounded) and

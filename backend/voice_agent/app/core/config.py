@@ -52,8 +52,8 @@ class Settings(BaseModel):
     # False = skip the check (local debugging only; a warning is logged on every webhook).
     vobiz_validate_signature: bool = True
     # Paths are joined to PUBLIC_BASE_URL to build the URLs Vobiz calls back.
-    vobiz_answer_webhook_path: str = "/api/v1/vobiz/answer"
-    vobiz_hangup_webhook_path: str = "/api/v1/vobiz/hangup"
+    vobiz_answer_webhook_path: str = "/api/vobiz/answer"
+    vobiz_hangup_webhook_path: str = "/api/vobiz/hangup"
     vobiz_stream_ws_path: str = "/ws/vobiz/stream"  # WebSocket server arrives in Milestone 3
     # M5: WebSocket path for MONITORED streams (opt-in multi-stream, per-track routing). Only used when a
     # stream is attached to this path; the legacy stream path above is unchanged.
@@ -90,7 +90,7 @@ class Settings(BaseModel):
 
     # --- Development-only inbound audio capture (M4.2 byte-order verification) ---
     # Active only when APP_ENV=development AND VOBIZ_DEV_CAPTURE_ENABLED=true AND a test destination
-    # is set. Only calls placed through POST /api/v1/vobiz/calls to that destination are captured.
+    # is set. Only calls placed through POST /api/vobiz/calls to that destination are captured.
     app_env: str = "production"
     vobiz_dev_capture_enabled: bool = False
     vobiz_dev_capture_destination: str = ""  # E.164 number of YOUR test phone
@@ -112,7 +112,7 @@ class Settings(BaseModel):
     ai_barge_in_enabled: bool = True
     ai_barge_in_grace_ms: int = 500  # ignore speech-start this soon after assistant audio starts (echo/late VAD)
 
-    # Shared secret for our own protected routes (e.g. POST /api/v1/vobiz/calls). Empty = routes disabled.
+    # Shared secret for our own protected routes (e.g. POST /api/vobiz/calls). Empty = routes disabled.
     internal_api_token: SecretStr = SecretStr("")
 
     public_base_url: str = ""
@@ -165,8 +165,8 @@ class Settings(BaseModel):
             vobiz_request_timeout_s=float(get("VOBIZ_REQUEST_TIMEOUT_S", "15")),
             vobiz_validate_signature=get("VOBIZ_VALIDATE_SIGNATURE", "true").lower()
             not in ("0", "false", "no"),
-            vobiz_answer_webhook_path=get("VOBIZ_ANSWER_WEBHOOK_PATH", "/api/v1/vobiz/answer"),
-            vobiz_hangup_webhook_path=get("VOBIZ_HANGUP_WEBHOOK_PATH", "/api/v1/vobiz/hangup"),
+            vobiz_answer_webhook_path=get("VOBIZ_ANSWER_WEBHOOK_PATH", "/api/vobiz/answer"),
+            vobiz_hangup_webhook_path=get("VOBIZ_HANGUP_WEBHOOK_PATH", "/api/vobiz/hangup"),
             vobiz_stream_ws_path=get("VOBIZ_STREAM_WS_PATH", "/ws/vobiz/stream"),
             vobiz_monitor_ws_path=get("VOBIZ_MONITOR_WS_PATH", "/ws/vobiz/monitor"),
             vobiz_inbound_content_type=get(

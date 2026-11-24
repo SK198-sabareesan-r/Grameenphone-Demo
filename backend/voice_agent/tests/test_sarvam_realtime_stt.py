@@ -773,7 +773,7 @@ def test_repr_of_client_config_and_events_has_no_secrets() -> None:
 
 def test_diagnostics_show_realtime_params_without_the_key() -> None:
     settings = Settings(sarvam_api_key=SecretStr(KEY))
-    response = TestClient(create_app(settings)).get("/api/v1/sarvam/diagnostics")
+    response = TestClient(create_app(settings)).get("/api/sarvam/diagnostics")
     body = response.json()
     assert KEY not in response.text
     assert body["stt"]["realtime_params"]["stream_type"] == "balanced"
@@ -782,6 +782,6 @@ def test_diagnostics_show_realtime_params_without_the_key() -> None:
 
 
 def test_diagnostics_flag_invalid_realtime_config() -> None:
-    body = TestClient(create_app(Settings(sarvam_stt_sample_rate=44100))).get("/api/v1/sarvam/diagnostics").json()
+    body = TestClient(create_app(Settings(sarvam_stt_sample_rate=44100))).get("/api/sarvam/diagnostics").json()
     assert body["stt"]["realtime_config_valid"] is False
     assert any("sample_rate" in w for w in body["warnings"])

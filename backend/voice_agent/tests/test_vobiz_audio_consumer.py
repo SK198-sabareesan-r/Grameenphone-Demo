@@ -507,7 +507,7 @@ def test_endpoint_consumes_frames_continuously_in_order() -> None:
             wait_until(lambda: session.consumer.frames_processed == 800)
 
             assert [f.data for f in sinks[0].frames] == frames  # every frame, in order, raw bytes intact
-            listing = client.get("/api/v1/vobiz/streams", headers=HEADERS).json()
+            listing = client.get("/api/vobiz/streams", headers=HEADERS).json()
             m = listing["calls"][0]["current_stream"]["consumer"]
             assert m["consumer_state"] == "running" and m["consumer_active"] is True
             assert m["frames_processed"] == 800 and m["frames_dropped"] == 0 and m["queue_depth"] == 0
@@ -522,7 +522,7 @@ def test_endpoint_without_sink_reports_unavailable_and_keeps_old_behaviour() -> 
             for i in range(1, 11):
                 stream.ws.send_json(media_msg(b"\x00" * 640, chunk=i, seq=i))
             wait_until(lambda: stream.session.stats.frames_received == 10)
-            m = client.get("/api/v1/vobiz/streams", headers=HEADERS).json()["calls"][0]["current_stream"]
+            m = client.get("/api/vobiz/streams", headers=HEADERS).json()["calls"][0]["current_stream"]
             assert m["consumer"]["consumer_state"] == "unavailable"
             assert m["consumer"]["frames_processed"] == 0
             assert m["queue"]["buffered"] == 10  # frames still accumulate, as before
@@ -559,7 +559,7 @@ def test_endpoint_hangup_cancels_consumer_stuck_in_sink() -> None:
             stream.ws.send_json(media_msg(b"\x00" * 640))
             wait_until(lambda: session.consumer.state == RUNNING and len(session.queue) == 0)
             form = {"CallUUID": CALL, "Direction": "outbound", "Event": "Hangup"}
-            assert client.post("/api/v1/vobiz/hangup", data=form).status_code == 200
+            assert client.post("/api/vobiz/hangup", data=form).status_code == 200
             assert session.consumer.task.done() and session.consumer.state == STOPPED
 
 
@@ -573,7 +573,7 @@ def test_endpoint_sink_errors_do_not_break_the_websocket() -> None:
             assert stream.session.consumer.processing_errors == 1
             assert stream.session.consumer.frames_processed == 4
             # the socket still works for control traffic
-            assert client.post(f"/api/v1/vobiz/streams/{CALL}/test-tone", json={"duration_ms": 100},
+            assert client.post(f"/api/vobiz/streams/{CALL}/test-tone", json={"duration_ms": 100},
                                headers=HEADERS).status_code == 200
 
 

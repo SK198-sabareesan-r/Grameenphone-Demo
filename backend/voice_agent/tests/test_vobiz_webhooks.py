@@ -17,8 +17,8 @@ from app.main import create_app
 
 TOKEN = "vobiz-secret-token"
 BASE = "https://abc.ngrok.app"
-ANSWER = "/api/v1/vobiz/answer"
-HANGUP = "/api/v1/vobiz/hangup"
+ANSWER = "/api/vobiz/answer"
+HANGUP = "/api/vobiz/hangup"
 
 ANSWER_FORM = {
     "CallUUID": "5401fd2e-6344-40df-a22c-c8ffea7a92e7",
@@ -324,9 +324,9 @@ def test_existing_routes_still_registered(lax: TestClient) -> None:
     paths = set(lax.get("/openapi.json").json()["paths"])
     assert {
         "/health",
-        "/api/v1/sarvam/diagnostics",
-        "/api/v1/vobiz/diagnostics",
-        "/api/v1/vobiz/calls",
+        "/api/sarvam/diagnostics",
+        "/api/vobiz/diagnostics",
+        "/api/vobiz/calls",
         ANSWER,
         HANGUP,
     } <= paths
@@ -334,7 +334,7 @@ def test_existing_routes_still_registered(lax: TestClient) -> None:
 
 def test_diagnostics_reports_new_settings_without_secrets() -> None:
     settings = make_settings(internal_api_token=SecretStr("internal-secret"), vobiz_caller_id="+14155551234")
-    body = TestClient(create_app(settings)).get("/api/v1/vobiz/diagnostics")
+    body = TestClient(create_app(settings)).get("/api/vobiz/diagnostics")
     data = body.json()
     assert data["calls"]["internal_api_token_configured"] is True
     assert data["calls"]["answer_url"] == f"{BASE}{ANSWER}"
@@ -344,5 +344,5 @@ def test_diagnostics_reports_new_settings_without_secrets() -> None:
 
 
 def test_diagnostics_warns_when_internal_token_missing() -> None:
-    data = TestClient(create_app(make_settings())).get("/api/v1/vobiz/diagnostics").json()
+    data = TestClient(create_app(make_settings())).get("/api/vobiz/diagnostics").json()
     assert any("INTERNAL_API_TOKEN" in w for w in data["warnings"])

@@ -17,7 +17,7 @@ optional Copilot webhook). No database is used; call state is in memory in a sin
 
 ## Features
 
-- Outbound calls via the Vobiz API (`POST /api/v1/vobiz/calls`).
+- Outbound calls via the Vobiz API (`POST /api/vobiz/calls`).
 - Vobiz answer and hangup webhooks, with HMAC signature validation. The answer webhook returns
   VobizXML that starts a bidirectional `<Stream>`.
 - WebSocket audio streams (`/ws/vobiz/stream/{call_uuid}`, plus `/ws/vobiz/monitor/{call_uuid}`
@@ -79,8 +79,8 @@ The suite in `tests/` uses fakes and makes no calls to Vobiz, Sarvam or AWS.
 1. Run the app and expose it over HTTPS (for example `ngrok http 8000`).
 2. In `config/.env`, set `PUBLIC_BASE_URL` to that HTTPS URL (no trailing slash), plus `VOBIZ_AUTH_ID`,
    `VOBIZ_AUTH_TOKEN`, `VOBIZ_CALLER_ID` and `INTERNAL_API_TOKEN`. Restart the app.
-3. Call `GET /api/v1/vobiz/diagnostics` to see the answer and hangup URLs the app will use.
-4. Place a call with `POST /api/v1/vobiz/calls` and the header `X-Internal-Token`. Vobiz then
+3. Call `GET /api/vobiz/diagnostics` to see the answer and hangup URLs the app will use.
+4. Place a call with `POST /api/vobiz/calls` and the header `X-Internal-Token`. Vobiz then
    calls the answer webhook, which points the stream at `wss://<host>/ws/vobiz/stream/<call_uuid>`.
 5. To enable speech recognition set `VOBIZ_SARVAM_STT_ENABLED=true` and `SARVAM_API_KEY`. For the
    AI conversation also set `AI_CONVERSATION_ENABLED=true` and `BEDROCK_INFERENCE_PROFILE_ARN`.
@@ -93,13 +93,13 @@ Real calls use paid Vobiz, Sarvam and AWS services.
 | Route | Purpose |
 |---|---|
 | `GET /health` | Liveness |
-| `POST /api/v1/vobiz/calls` | Place an outbound call (internal token) |
-| `POST /api/v1/vobiz/answer`, `/hangup` | Vobiz webhooks (paths configurable) |
+| `POST /api/vobiz/calls` | Place an outbound call (internal token) |
+| `POST /api/vobiz/answer`, `/hangup` | Vobiz webhooks (paths configurable) |
 | `WS /ws/vobiz/stream/{call_uuid}`, `/ws/vobiz/monitor/{call_uuid}` | Audio streams |
-| `GET /api/v1/vobiz/streams` | Active streams (internal token) |
-| `POST /api/v1/vobiz/streams/{call_uuid}/test-tone`, `/clear` | Playback and clearAudio checks (internal token) |
-| `GET /api/v1/vobiz/diagnostics`, `/api/v1/sarvam/diagnostics` | Effective config; `verify=true` tests credentials |
-| `GET /api/v1/ai/conversations` | AI conversation status (internal token) |
+| `GET /api/vobiz/streams` | Active streams (internal token) |
+| `POST /api/vobiz/streams/{call_uuid}/test-tone`, `/clear` | Playback and clearAudio checks (internal token) |
+| `GET /api/vobiz/diagnostics`, `/api/sarvam/diagnostics` | Effective config; `verify=true` tests credentials |
+| `GET /api/ai/conversations` | AI conversation status (internal token) |
 
 ## Scripts and live tests
 

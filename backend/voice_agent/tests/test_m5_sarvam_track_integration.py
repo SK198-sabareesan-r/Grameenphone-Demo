@@ -287,7 +287,7 @@ def test_s15_monitor_websocket_routes_both_tracks_to_independent_sarvam_sessions
                 mon.ws.send_json(msg_in)
                 mon.ws.send_json(msg_out)
             wait_until(lambda: len(fake.sockets) == 2 and all(ws.audio for ws in fake.sockets))
-            snap = client.get("/api/v1/vobiz/streams", headers={"X-Internal-Token": "internal-token"}).json()
+            snap = client.get("/api/vobiz/streams", headers={"X-Internal-Token": "internal-token"}).json()
             call = snap["calls"][0]
             assert call["active_streams"] == 1 and call["monitor_streams"][0]["kind"] == "monitor"
             assert client.post(HANGUP, data={"CallUUID": CALL, "Direction": "outbound", "Event": "Hangup"}).status_code == 200

@@ -1,4 +1,4 @@
-"""Milestone 2 tests: POST /api/v1/vobiz/calls. Vobiz is mocked; no real call is ever placed."""
+"""Milestone 2 tests: POST /api/vobiz/calls. Vobiz is mocked; no real call is ever placed."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def test_valid_outbound_call(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     client = build(monkeypatch, fake)
 
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
 
     assert response.status_code == 202
     body = response.json()
@@ -93,23 +93,23 @@ def test_valid_outbound_call(monkeypatch: pytest.MonkeyPatch) -> None:
     assert fake.last_json == {
         "from": "+14155551234",
         "to": DEST,
-        "answer_url": "https://abc.ngrok.app/api/v1/vobiz/answer",
+        "answer_url": "https://abc.ngrok.app/api/vobiz/answer",
         "answer_method": "POST",
-        "hangup_url": "https://abc.ngrok.app/api/v1/vobiz/hangup",
+        "hangup_url": "https://abc.ngrok.app/api/vobiz/hangup",
         "hangup_method": "POST",
     }
 
 
 def test_destination_without_plus_is_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
-    build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": "8801711111234"}, headers=HEADERS)
+    build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": "8801711111234"}, headers=HEADERS)
     assert fake.last_json["to"] == DEST
 
 
 def test_configured_webhook_paths_are_used(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     settings = make_settings(vobiz_answer_webhook_path="/hooks/a", vobiz_hangup_webhook_path="/hooks/h")
-    build(monkeypatch, fake, settings).post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    build(monkeypatch, fake, settings).post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert fake.last_json["answer_url"] == "https://abc.ngrok.app/hooks/a"
     assert fake.last_json["hangup_url"] == "https://abc.ngrok.app/hooks/h"
 
@@ -123,7 +123,7 @@ def test_configured_webhook_paths_are_used(monkeypatch: pytest.MonkeyPatch) -> N
 )
 def test_invalid_destinations_rejected_without_calling_vobiz(monkeypatch: pytest.MonkeyPatch, to) -> None:
     fake = FakeVobiz()
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": to}, headers=HEADERS)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": to}, headers=HEADERS)
     assert response.status_code == 422
     assert fake.requests == []
 
@@ -131,7 +131,7 @@ def test_invalid_destinations_rejected_without_calling_vobiz(monkeypatch: pytest
 def test_caller_supplied_answer_url_is_not_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     body = {"to": DEST, "answer_url": "https://evil.example/answer"}
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json=body, headers=HEADERS)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json=body, headers=HEADERS)
     assert response.status_code == 422
     assert fake.requests == []
 
@@ -139,7 +139,7 @@ def test_caller_supplied_answer_url_is_not_accepted(monkeypatch: pytest.MonkeyPa
 def test_missing_caller_id_returns_config_error(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     client = build(monkeypatch, fake, make_settings(vobiz_caller_id=""))
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 503
     assert response.json()["error"]["type"] == "vobiz_config_error"
     assert "VOBIZ_CALLER_ID" in response.json()["error"]["message"]
@@ -149,7 +149,7 @@ def test_missing_caller_id_returns_config_error(monkeypatch: pytest.MonkeyPatch)
 def test_invalid_caller_id_returns_config_error(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     client = build(monkeypatch, fake, make_settings(vobiz_caller_id="not-a-number"))
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 503
     assert fake.requests == []
 
@@ -158,7 +158,7 @@ def test_invalid_caller_id_returns_config_error(monkeypatch: pytest.MonkeyPatch)
 def test_non_public_base_url_blocks_call(monkeypatch: pytest.MonkeyPatch, base: str) -> None:
     fake = FakeVobiz()
     client = build(monkeypatch, fake, make_settings(public_base_url=base))
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 503
     assert response.json()["error"]["type"] == "vobiz_config_error"
     assert fake.requests == []
@@ -167,7 +167,7 @@ def test_non_public_base_url_blocks_call(monkeypatch: pytest.MonkeyPatch, base: 
 def test_missing_vobiz_credentials_block_call(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     client = build(monkeypatch, fake, make_settings(vobiz_auth_id="", vobiz_auth_token=SecretStr("")))
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 503
     assert fake.requests == []
 
@@ -177,7 +177,7 @@ def test_missing_vobiz_credentials_block_call(monkeypatch: pytest.MonkeyPatch) -
 
 def test_missing_internal_token_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST})
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST})
     assert response.status_code == 401
     assert fake.requests == []
 
@@ -186,14 +186,14 @@ def test_missing_internal_token_rejected(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_wrong_internal_token_rejected(monkeypatch: pytest.MonkeyPatch, supplied: str) -> None:
     fake = FakeVobiz()
     response = build(monkeypatch, fake).post(
-        "/api/v1/vobiz/calls", json={"to": DEST}, headers={"X-Internal-Token": supplied}
+        "/api/vobiz/calls", json={"to": DEST}, headers={"X-Internal-Token": supplied}
     )
     assert response.status_code == 401
     assert fake.requests == []
 
 
 def test_auth_is_checked_before_body_validation(monkeypatch: pytest.MonkeyPatch) -> None:
-    response = build(monkeypatch, FakeVobiz()).post("/api/v1/vobiz/calls", json={"to": "bad"})
+    response = build(monkeypatch, FakeVobiz()).post("/api/vobiz/calls", json={"to": "bad"})
     assert response.status_code == 401
 
 
@@ -201,7 +201,7 @@ def test_route_disabled_when_internal_token_not_configured(monkeypatch: pytest.M
     fake = FakeVobiz()
     client = build(monkeypatch, fake, make_settings(internal_api_token=SecretStr("")))
     for headers in ({}, {"X-Internal-Token": ""}, HEADERS):
-        response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=headers)
+        response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=headers)
         assert response.status_code == 503
     assert fake.requests == []
 
@@ -212,7 +212,7 @@ def test_route_disabled_when_internal_token_not_configured(monkeypatch: pytest.M
 def test_vobiz_authentication_error(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz(401, {"error": "invalid credentials"})
     client = build(monkeypatch, fake)
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 502
     error = response.json()["error"]
     assert error["type"] == "vobiz_auth_error" and error["upstream_status"] == 401
@@ -220,13 +220,13 @@ def test_vobiz_authentication_error(monkeypatch: pytest.MonkeyPatch) -> None:
     # Definite rejection: the guard is released so a corrected retry is possible.
     fake._status = 200
     fake._body = {"api_id": "a", "message": "Call fired", "request_uuid": "u2"}
-    assert client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 202
+    assert client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 202
 
 
 def test_vobiz_insufficient_balance(monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"status": "error", "error": {"code": "INSUFFICIENT_BALANCE", "message": "Balance too low"}, "requestId": "r1"}
     client = build(monkeypatch, FakeVobiz(402, body))
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 502
     error = response.json()["error"]
     assert error["type"] == "vobiz_payment_required"
@@ -235,7 +235,7 @@ def test_vobiz_insufficient_balance(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_vobiz_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz(429, {"error": {"code": "RATE_LIMIT_EXCEEDED", "message": "CPS"}}, {"Retry-After": "2"})
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 429
     assert response.headers["Retry-After"] == "2"
     assert response.json()["error"]["type"] == "vobiz_rate_limited"
@@ -244,7 +244,7 @@ def test_vobiz_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_vobiz_rejects_unowned_caller_id_with_hint(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz(400, {"error": "From number not owned by account"})
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 400
     assert "VOBIZ_CALLER_ID" in response.json()["error"]["message"]
 
@@ -253,14 +253,14 @@ def test_timeout_is_not_retried_and_blocks_resubmission(monkeypatch: pytest.Monk
     fake = FakeVobiz(raises=httpx.ReadTimeout("slow"))
     client = build(monkeypatch, fake)
 
-    first = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    first = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert first.status_code == 504
     assert first.json()["error"]["type"] == "vobiz_timeout"
     assert "may or may not have been created" in first.json()["error"]["message"]
     assert len(fake.requests) == 1
 
     # The outcome is unknown, so an immediate resubmission is refused instead of risking a duplicate.
-    second = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    second = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert second.status_code == 409
     assert len(fake.requests) == 1
 
@@ -271,17 +271,17 @@ def test_connection_error_and_server_error_keep_the_guard(monkeypatch: pytest.Mo
         (FakeVobiz(500, {"error": "boom"}), 502),
     ):
         client = build(monkeypatch, fake)
-        assert client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == expected
-        assert client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 409
+        assert client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == expected
+        assert client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 409
         assert len(fake.requests) == 1
 
 
 def test_success_without_request_uuid_is_an_error_and_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz(200, {"api_id": "a", "message": "Call fired"})
     client = build(monkeypatch, fake)
-    response = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 502
-    assert client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 409
+    assert client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 409
 
 
 # --- duplicate protection --------------------------------------------------------------------
@@ -291,13 +291,13 @@ def test_duplicate_submission_is_blocked(monkeypatch: pytest.MonkeyPatch) -> Non
     fake = FakeVobiz()
     client = build(monkeypatch, fake)
 
-    assert client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 202
-    duplicate = client.post("/api/v1/vobiz/calls", json={"to": "8801711111234"}, headers=HEADERS)
+    assert client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 202
+    duplicate = client.post("/api/vobiz/calls", json={"to": "8801711111234"}, headers=HEADERS)
     assert duplicate.status_code == 409
     assert duplicate.json()["error"]["type"] == "vobiz_duplicate_call"
     assert len(fake.requests) == 1
 
-    other = client.post("/api/v1/vobiz/calls", json={"to": "+8801722222222"}, headers=HEADERS)
+    other = client.post("/api/vobiz/calls", json={"to": "+8801722222222"}, headers=HEADERS)
     assert other.status_code == 202
     assert len(fake.requests) == 2
 
@@ -310,8 +310,8 @@ def test_logs_contain_no_secrets_or_full_numbers(monkeypatch: pytest.MonkeyPatch
     # create_app() reconfigures the root logger and drops caplog's handler; re-attach it.
     logging.getLogger().addHandler(caplog.handler)
     caplog.set_level(logging.DEBUG)
-    client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
-    client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers={"X-Internal-Token": "bad-guess"})
+    client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    client.post("/api/vobiz/calls", json={"to": DEST}, headers={"X-Internal-Token": "bad-guess"})
     ours = [r for r in caplog.records if r.name.startswith("app.")]
     assert any(r.getMessage() == "vobiz_call_created" for r in ours)
     text = " ".join(f"{r.getMessage()} {r.__dict__}" for r in ours)

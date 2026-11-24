@@ -150,14 +150,14 @@ def test_feature_is_off_by_default_and_adds_no_behaviour() -> None:
         assert client.app.state.conversation is None
         with open_stream(client) as stream:
             assert stream.session is not None  # the normal streaming path is unchanged: no unsolicited audio
-        assert client.get("/api/v1/ai/conversations", headers=HEADERS).json() == {"enabled": False}
+        assert client.get("/api/ai/conversations", headers=HEADERS).json() == {"enabled": False}
 
 
 def test_status_endpoint_reports_metrics_without_text() -> None:
     app, _llm, _tts = app_with_fakes()
     with TestClient(app) as client:
-        assert client.get("/api/v1/ai/conversations").status_code in (401, 403)
-        body = client.get("/api/v1/ai/conversations", headers=HEADERS).json()
+        assert client.get("/api/ai/conversations").status_code in (401, 403)
+        body = client.get("/api/ai/conversations", headers=HEADERS).json()
         assert body["enabled"] is True and "greetings_attempted" in body["metrics"]
 
 

@@ -45,7 +45,7 @@ class VobizDiagnostics(BaseModel):
 
 
 class OutboundCallRequest(BaseModel):
-    """Body of POST /api/v1/vobiz/calls. The answer URL is never accepted from callers."""
+    """Body of POST /api/vobiz/calls. The answer URL is never accepted from callers."""
 
     model_config = ConfigDict(extra="forbid")
 

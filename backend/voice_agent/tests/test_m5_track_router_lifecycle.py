@@ -30,7 +30,7 @@ from tests.test_transcript_pipeline import settle as pipeline_settle
 from tests.test_vobiz_sarvam_stt import make_session, settle
 from tests.test_vobiz_websocket import CALL, calls_of, make_settings, media_msg, open_stream, start_msg, token_for, wait_until
 
-HANGUP = "/api/v1/vobiz/hangup"
+HANGUP = "/api/vobiz/hangup"
 MON = "/ws/vobiz/monitor"
 
 

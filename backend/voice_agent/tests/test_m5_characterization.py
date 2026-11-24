@@ -102,7 +102,7 @@ from tests.test_vobiz_websocket import (  # noqa: E402
 )
 from starlette.websockets import WebSocketDisconnect  # noqa: E402
 
-HANGUP = "/api/v1/vobiz/hangup"
+HANGUP = "/api/vobiz/hangup"
 assert client is not None  # imported as a pytest fixture
 
 

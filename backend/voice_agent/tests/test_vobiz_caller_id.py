@@ -79,7 +79,7 @@ def test_env_example_documents_caller_id_with_a_placeholder() -> None:
 
 def test_outbound_request_uses_configured_number_and_public_urls(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
 
     assert response.status_code == 202 and response.json()["call_uuid"] == "uuid-1"
     assert len(fake.requests) == 1
@@ -89,15 +89,15 @@ def test_outbound_request_uses_configured_number_and_public_urls(monkeypatch: py
     body = json.loads(sent.content)
     assert body["from"] == CALLER_ID
     assert body["to"] == DEST
-    assert body["answer_url"] == f"{BASE}/api/v1/vobiz/answer" and body["answer_method"] == "POST"
-    assert body["hangup_url"] == f"{BASE}/api/v1/vobiz/hangup" and body["hangup_method"] == "POST"
+    assert body["answer_url"] == f"{BASE}/api/vobiz/answer" and body["answer_method"] == "POST"
+    assert body["hangup_url"] == f"{BASE}/api/vobiz/hangup" and body["hangup_method"] == "POST"
     assert set(body) == {"from", "to", "answer_url", "answer_method", "hangup_url", "hangup_method"}
 
 
 def test_caller_id_without_plus_is_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     build(monkeypatch, fake, make_settings(vobiz_caller_id="919262175535")).post(
-        "/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS
+        "/api/vobiz/calls", json={"to": DEST}, headers=HEADERS
     )
     assert json.loads(fake.requests[0].content)["from"] == CALLER_ID
 
@@ -111,7 +111,7 @@ def test_missing_or_invalid_caller_id_is_rejected_without_calling_vobiz(
 ) -> None:
     fake = FakeVobiz()
     response = build(monkeypatch, fake, make_settings(vobiz_caller_id=caller_id)).post(
-        "/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS
+        "/api/vobiz/calls", json={"to": DEST}, headers=HEADERS
     )
     assert response.status_code == 503
     assert response.json()["error"]["type"] == "vobiz_config_error"
@@ -128,7 +128,7 @@ def test_missing_or_invalid_caller_id_is_rejected_without_calling_vobiz(
 )
 def test_request_cannot_override_caller_id_or_webhooks(monkeypatch: pytest.MonkeyPatch, extra: dict) -> None:
     fake = FakeVobiz()
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST, **extra}, headers=HEADERS)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST, **extra}, headers=HEADERS)
     assert response.status_code == 422
     assert fake.requests == []
 
@@ -139,7 +139,7 @@ def test_request_cannot_override_caller_id_or_webhooks(monkeypatch: pytest.Monke
 @pytest.mark.parametrize("headers", [{}, {"X-Internal-Token": "wrong"}, {"X-Internal-Token": ""}])
 def test_internal_auth_still_enforced(monkeypatch: pytest.MonkeyPatch, headers: dict) -> None:
     fake = FakeVobiz()
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST}, headers=headers)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST}, headers=headers)
     assert response.status_code == 401
     assert fake.requests == []
 
@@ -150,15 +150,15 @@ def test_internal_auth_still_enforced(monkeypatch: pytest.MonkeyPatch, headers: 
 def test_duplicate_protection_still_active(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
     client = build(monkeypatch, fake)
-    assert client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 202
-    second = client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    assert client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS).status_code == 202
+    second = client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert second.status_code == 409 and second.json()["error"]["type"] == "vobiz_duplicate_call"
     assert len(fake.requests) == 1
 
 
 def test_not_owned_caller_id_is_surfaced_with_a_hint_and_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz(400, {"error": "From number not owned by account"})
-    response = build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    response = build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     assert response.status_code == 400
     assert "VOBIZ_CALLER_ID" in response.json()["error"]["message"]
     assert len(fake.requests) == 1
@@ -169,7 +169,7 @@ def test_not_owned_caller_id_is_surfaced_with_a_hint_and_not_retried(monkeypatch
 
 def test_outbound_call_needs_no_application_or_number_lookups(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeVobiz()
-    build(monkeypatch, fake).post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    build(monkeypatch, fake).post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     paths = [r.url.path for r in fake.requests]
     assert paths == [f"/api/v1/Account/{AUTH_ID}/Call/"]  # one Make Call request, nothing else
     assert not any("Application" in p or "numbers" in p for p in paths)
@@ -181,7 +181,7 @@ def test_outbound_call_needs_no_application_or_number_lookups(monkeypatch: pytes
 
 def test_diagnostics_reports_caller_id_status_without_revealing_it(monkeypatch: pytest.MonkeyPatch) -> None:
     client = build(monkeypatch, FakeVobiz(200, {"currency": "INR", "status": "active", "balance": 900}))
-    response = client.get("/api/v1/vobiz/diagnostics?verify=true")
+    response = client.get("/api/vobiz/diagnostics?verify=true")
     assert response.status_code == 200
     data = response.json()
     calls = data["calls"]
@@ -195,13 +195,13 @@ def test_diagnostics_reports_caller_id_status_without_revealing_it(monkeypatch: 
 
 
 def test_diagnostics_flags_invalid_caller_id() -> None:
-    data = TestClient(create_app(make_settings(vobiz_caller_id="not-a-number"))).get("/api/v1/vobiz/diagnostics").json()
+    data = TestClient(create_app(make_settings(vobiz_caller_id="not-a-number"))).get("/api/vobiz/diagnostics").json()
     assert data["calls"]["caller_id_configured"] is True and data["calls"]["caller_id_valid_e164"] is False
     assert any("not a valid E.164" in w for w in data["warnings"])
 
 
 def test_diagnostics_without_caller_id() -> None:
-    data = TestClient(create_app(make_settings(vobiz_caller_id=""))).get("/api/v1/vobiz/diagnostics").json()
+    data = TestClient(create_app(make_settings(vobiz_caller_id=""))).get("/api/vobiz/diagnostics").json()
     assert data["calls"]["caller_id_configured"] is False and data["calls"]["caller_id_hint"] is None
     assert any("VOBIZ_CALLER_ID is not set" in w for w in data["warnings"])
 
@@ -210,7 +210,7 @@ def test_logs_do_not_contain_full_numbers(monkeypatch: pytest.MonkeyPatch, caplo
     client = build(monkeypatch, FakeVobiz())
     logging.getLogger().addHandler(caplog.handler)  # create_app() replaced the root handlers
     caplog.set_level(logging.DEBUG)
-    client.post("/api/v1/vobiz/calls", json={"to": DEST}, headers=HEADERS)
+    client.post("/api/vobiz/calls", json={"to": DEST}, headers=HEADERS)
     text = " ".join(f"{r.getMessage()} {r.__dict__}" for r in caplog.records if r.name.startswith("app."))
     assert "vobiz_call_created" in text
     for secret in ("9262175535", "9876543210", VOBIZ_TOKEN, INTERNAL):

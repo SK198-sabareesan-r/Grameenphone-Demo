@@ -38,7 +38,7 @@ async def get_stream_url(http_base: str, call_id: str) -> str:
     form = {"CallUUID": call_id, "From": "+10000000000", "To": "+10000000001",
             "Direction": "outbound", "Event": "StartApp", "CallStatus": "in-progress"}
     async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.post(f"{http_base}/api/v1/vobiz/answer", data=form)
+        response = await client.post(f"{http_base}/api/vobiz/answer", data=form)
     response.raise_for_status()
     stream = ET.fromstring(response.text).find("Stream")
     if stream is None or not stream.text:
@@ -58,9 +58,9 @@ async def run(args: argparse.Namespace) -> None:
     print(f"call_id={call_id}\nstream_id={stream_id}\nconnecting (token hidden)...")
     print(
         "\nIn another terminal, try:\n"
-        f'  curl -X POST {args.base}/api/v1/vobiz/streams/{call_id}/test-tone -H "X-Internal-Token: $INTERNAL" '
+        f'  curl -X POST {args.base}/api/vobiz/streams/{call_id}/test-tone -H "X-Internal-Token: $INTERNAL" '
         '-H "Content-Type: application/json" -d "{\\"duration_ms\\": 1000}"\n'
-        f'  curl -X POST {args.base}/api/v1/vobiz/streams/{call_id}/clear -H "X-Internal-Token: $INTERNAL"\n'
+        f'  curl -X POST {args.base}/api/vobiz/streams/{call_id}/clear -H "X-Internal-Token: $INTERNAL"\n'
     )
 
     async with websockets.connect(ws_url, max_size=2**20) as ws:

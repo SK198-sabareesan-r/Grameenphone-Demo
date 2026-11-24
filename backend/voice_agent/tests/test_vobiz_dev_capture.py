@@ -217,7 +217,7 @@ def test_registered_test_call_is_captured_through_the_stream(tmp_path) -> None:
     with TestClient(create_app(settings)) as client:
         # the answer webhook registers the call because To is the configured test phone
         form = {"CallUUID": CALL, "From": "+919262175535", "To": TEST_PHONE, "Direction": "outbound"}
-        assert client.post("/api/v1/vobiz/answer", data=form).status_code == 200
+        assert client.post("/api/vobiz/answer", data=form).status_code == 200
         frames = [os.urandom(640) for _ in range(10)]
         with open_stream(client) as stream:
             for i, data in enumerate(frames, start=1):
@@ -231,13 +231,13 @@ def test_registered_test_call_is_captured_through_the_stream(tmp_path) -> None:
 def test_other_calls_are_never_captured(tmp_path) -> None:
     with TestClient(create_app(capture_settings(tmp_path))) as client:
         form = {"CallUUID": CALL, "From": "+919262175535", "To": OTHER_PHONE, "Direction": "outbound"}
-        client.post("/api/v1/vobiz/answer", data=form)
+        client.post("/api/vobiz/answer", data=form)
         with open_stream(client) as stream:
             stream.ws.send_json(media_msg(os.urandom(640)))
             wait_until(lambda: stream.session.stats.frames_received == 1)
             wait_until(lambda: stream.session.consumer.state == "unavailable")
             assert stream.session.consumer.frames_processed == 0
-        listing = client.get("/api/v1/vobiz/streams", headers=HEADERS)
+        listing = client.get("/api/vobiz/streams", headers=HEADERS)
     assert not (tmp_path / "captures").exists() or not list((tmp_path / "captures").iterdir())
     assert listing.status_code == 200
 
@@ -246,13 +246,13 @@ def test_inbound_calls_are_not_registered_even_to_the_test_number(tmp_path) -> N
     app = create_app(capture_settings(tmp_path))
     with TestClient(app) as client:
         form = {"CallUUID": "in-1", "From": TEST_PHONE, "To": TEST_PHONE, "Direction": "inbound"}
-        client.post("/api/v1/vobiz/answer", data=form)
+        client.post("/api/vobiz/answer", data=form)
     assert not app.state.dev_capture.is_registered("in-1")
 
 
 def test_diagnostics_warn_when_capture_enabled(tmp_path) -> None:
     with TestClient(create_app(capture_settings(tmp_path))) as client:
-        warnings = " ".join(client.get("/api/v1/vobiz/diagnostics").json()["warnings"])
+        warnings = " ".join(client.get("/api/vobiz/diagnostics").json()["warnings"])
     assert "VOBIZ_DEV_CAPTURE_ENABLED" in warnings and TEST_PHONE not in warnings
 
 

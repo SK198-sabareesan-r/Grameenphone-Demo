@@ -8,7 +8,7 @@ from app.schemas.sarvam import AuthCheck, SarvamDiagnostics
 from app.services.sarvam.client import SarvamClient
 from app.services.sarvam.diagnostics import build_diagnostics
 
-router = APIRouter(prefix="/api/v1/sarvam", tags=["sarvam"])
+router = APIRouter(prefix="/api/sarvam", tags=["sarvam"])
 
 
 @router.get("/diagnostics", response_model=SarvamDiagnostics)

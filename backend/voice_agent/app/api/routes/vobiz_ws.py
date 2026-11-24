@@ -2,7 +2,7 @@
 
 The WebSocket path is `<VOBIZ_STREAM_WS_PATH>/{call_uuid}` (default /ws/vobiz/stream/{call_uuid}).
 
-The REST routes under /api/v1/vobiz/streams exist to exercise the transport with SYNTHETIC audio
+The REST routes under /api/vobiz/streams exist to exercise the transport with SYNTHETIC audio
 (tones) from a simulated or real stream. They are protected by X-Internal-Token, send no TTS, and
 can be removed without affecting the WebSocket endpoint.
 """
@@ -84,7 +84,7 @@ def create_ws_router(settings: Settings) -> APIRouter:
 
     internal = [Depends(require_internal_token)]
 
-    @router.get("/api/v1/vobiz/streams", dependencies=internal)
+    @router.get("/api/vobiz/streams", dependencies=internal)
     async def list_streams(request: Request) -> dict[str, object]:
         """Active calls and per-stream counters. No audio and no phone numbers."""
         manager: CallStateManager = request.app.state.call_manager
@@ -95,7 +95,7 @@ def create_ws_router(settings: Settings) -> APIRouter:
             "transcript_pipeline": request.app.state.transcript_pipeline.snapshot(),  # counters only, no text
         }
 
-    @router.post("/api/v1/vobiz/streams/{call_uuid}/test-tone", dependencies=internal)
+    @router.post("/api/vobiz/streams/{call_uuid}/test-tone", dependencies=internal)
     async def send_test_tone(call_uuid: str, body: ToneRequest, request: Request) -> dict[str, object]:
         """Play a synthetic tone on the call's current stream.
 
@@ -134,7 +134,7 @@ def create_ws_router(settings: Settings) -> APIRouter:
             "outcome": result.outcome,
         }
 
-    @router.post("/api/v1/vobiz/streams/{call_uuid}/clear", dependencies=internal)
+    @router.post("/api/vobiz/streams/{call_uuid}/clear", dependencies=internal)
     async def clear_stream_audio(call_uuid: str, request: Request) -> dict[str, object]:
         """Send clearAudio and report whether Vobiz acknowledged it with clearedAudio."""
         session = _active_session(request, call_uuid)

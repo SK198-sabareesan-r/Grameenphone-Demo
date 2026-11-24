@@ -58,7 +58,7 @@ def collect_warnings(s: Settings) -> list[str]:
     elif not s.public_base_url.startswith("https://"):
         w.append("PUBLIC_BASE_URL is not https; Vobiz needs a public https URL for webhooks.")
     if not s.internal_api_token.get_secret_value():
-        w.append("INTERNAL_API_TOKEN is not set; POST /api/v1/vobiz/calls is disabled until it is.")
+        w.append("INTERNAL_API_TOKEN is not set; POST /api/vobiz/calls is disabled until it is.")
     if s.vobiz_sarvam_stt_enabled:
         w.append("VOBIZ_SARVAM_STT_ENABLED=true: every Vobiz stream opens its own Sarvam realtime STT session.")
     if s.vobiz_dev_capture_enabled:

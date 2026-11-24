@@ -17,7 +17,7 @@ from app.integrations.vobiz.webhooks import EventDeduper
 from app.integrations.vobiz.xml_builder import build_bidirectional_stream_xml
 
 TOKEN = "auth-token-for-tests"
-URL = "https://abc.ngrok.app/api/v1/vobiz/answer"
+URL = "https://abc.ngrok.app/api/vobiz/answer"
 
 
 # --- VobizXML --------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ def test_wrong_token_is_invalid() -> None:
 
 
 def test_wrong_url_is_invalid() -> None:
-    assert verify_signature(TOKEN, "https://evil.example/api/v1/vobiz/answer", _headers("v3")).status == "invalid"
+    assert verify_signature(TOKEN, "https://evil.example/api/vobiz/answer", _headers("v3")).status == "invalid"
 
 
 def test_tampered_signature_is_invalid() -> None:
@@ -264,7 +264,7 @@ def test_non_public_urls_rejected(url: str) -> None:
 
 
 def test_join_and_wss_helpers() -> None:
-    assert join_public_url("https://h.example/", "/api/v1/vobiz/answer") == "https://h.example/api/v1/vobiz/answer"
+    assert join_public_url("https://h.example/", "/api/vobiz/answer") == "https://h.example/api/vobiz/answer"
     assert https_to_wss("https://h.example/ws") == "wss://h.example/ws"
     for bad in ("no-slash", "/a b", "/a?x=1", "/a#f"):
         with pytest.raises(VobizConfigError):
@@ -334,8 +334,8 @@ def test_event_deduper_ttl_and_bound() -> None:
 
 def test_milestone2_defaults() -> None:
     s = Settings()
-    assert s.vobiz_answer_webhook_path == "/api/v1/vobiz/answer"
-    assert s.vobiz_hangup_webhook_path == "/api/v1/vobiz/hangup"
+    assert s.vobiz_answer_webhook_path == "/api/vobiz/answer"
+    assert s.vobiz_hangup_webhook_path == "/api/vobiz/hangup"
     assert s.vobiz_stream_ws_path == "/ws/vobiz/stream"
     assert s.vobiz_inbound_content_type == "audio/x-l16;rate=16000"
     assert s.internal_api_token.get_secret_value() == ""

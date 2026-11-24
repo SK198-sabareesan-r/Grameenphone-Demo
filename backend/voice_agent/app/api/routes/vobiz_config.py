@@ -8,7 +8,7 @@ from app.integrations.vobiz.client import VobizClient
 from app.integrations.vobiz.diagnostics import build_diagnostics
 from app.schemas.vobiz import VobizConnectivity, VobizDiagnostics
 
-router = APIRouter(prefix="/api/v1/vobiz", tags=["vobiz"])
+router = APIRouter(prefix="/api/vobiz", tags=["vobiz"])
 
 
 @router.get("/diagnostics", response_model=VobizDiagnostics)

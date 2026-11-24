@@ -105,7 +105,7 @@ async def test_retry_after_is_parsed() -> None:
 
 def test_diagnostics_hides_key_and_reports_defaults() -> None:
     client = TestClient(create_app(make_settings()))
-    response = client.get("/api/v1/sarvam/diagnostics")
+    response = client.get("/api/sarvam/diagnostics")
     assert response.status_code == 200
     body = response.json()
     assert KEY not in response.text
@@ -118,14 +118,14 @@ def test_diagnostics_hides_key_and_reports_defaults() -> None:
 
 def test_diagnostics_warns_on_unknown_model_without_replacing_it() -> None:
     client = TestClient(create_app(make_settings(sarvam_tts_model="bulbul:v9")))
-    body = client.get("/api/v1/sarvam/diagnostics").json()
+    body = client.get("/api/sarvam/diagnostics").json()
     assert body["tts"]["model"] == "bulbul:v9"
     assert any("bulbul:v9" in w for w in body["warnings"])
 
 
 def test_diagnostics_verify_without_key_returns_config_error() -> None:
     client = TestClient(create_app(make_settings("")))
-    response = client.get("/api/v1/sarvam/diagnostics?verify=true")
+    response = client.get("/api/sarvam/diagnostics?verify=true")
     assert response.status_code == 503
     assert response.json()["error"]["type"] == "sarvam_config_error"
 
@@ -140,7 +140,7 @@ def test_diagnostics_verify_success_and_auth_failure(monkeypatch: pytest.MonkeyP
     client = TestClient(create_app(make_settings()))
 
     install(200, {"request_id": "abc"})
-    ok = client.get("/api/v1/sarvam/diagnostics?verify=true").json()
+    ok = client.get("/api/sarvam/diagnostics?verify=true").json()
     assert ok["auth"] == {
         "checked": True,
         "ok": True,
@@ -149,7 +149,7 @@ def test_diagnostics_verify_success_and_auth_failure(monkeypatch: pytest.MonkeyP
     }
 
     install(403, {"error": {"message": "nope", "code": "invalid_api_key_error"}})
-    bad = client.get("/api/v1/sarvam/diagnostics?verify=true")
+    bad = client.get("/api/sarvam/diagnostics?verify=true")
     assert bad.status_code == 502
     assert bad.json()["error"]["type"] == "sarvam_auth_error"
     assert KEY not in bad.text

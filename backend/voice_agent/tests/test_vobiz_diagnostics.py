@@ -36,7 +36,7 @@ from tests.test_vobiz_websocket import (
 
 MULAW_8K = AudioFormat(ENC_MULAW, 8000)
 L16_16K = AudioFormat(ENC_L16, 16000)
-TONE = f"/api/v1/vobiz/streams/{CALL}/test-tone"
+TONE = f"/api/vobiz/streams/{CALL}/test-tone"
 
 
 @pytest.fixture
@@ -133,7 +133,7 @@ def test_stream_ended_reports_close_code_duration_and_counters(client: TestClien
 def test_stream_ended_when_server_closes_after_hangup(client: TestClient, logs) -> None:
     with open_stream(client) as stream:
         form = {"CallUUID": CALL, "Direction": "outbound", "Event": "Hangup"}
-        assert client.post("/api/v1/vobiz/hangup", data=form).status_code == 200
+        assert client.post("/api/vobiz/hangup", data=form).status_code == 200
         with pytest.raises(Exception):
             recv_json(stream.ws)
     (ended,) = wait_record(logs, "vobiz_stream_ended")
@@ -225,7 +225,7 @@ def test_cleared_audio_received_logged(client: TestClient, logs) -> None:
 
     with open_stream(client) as stream:
         with ThreadPoolExecutor(max_workers=1) as pool:
-            pending = pool.submit(lambda: client.post(f"/api/v1/vobiz/streams/{CALL}/clear", headers=HEADERS))
+            pending = pool.submit(lambda: client.post(f"/api/vobiz/streams/{CALL}/clear", headers=HEADERS))
             assert recv_json(stream.ws)["event"] == "clearAudio"
             stream.ws.send_json({"event": "clearedAudio", "sequenceNumber": 0, "streamId": STREAM})
             assert pending.result(timeout=5).json()["cleared_audio_confirmed"] is True
@@ -253,7 +253,7 @@ def test_no_secrets_audio_or_numbers_in_any_log(client: TestClient, logs) -> Non
         stream.ws.send_json({"event": "playedStream", "name": body["checkpoint"]})
         wait_record(logs, "vobiz_checkpoint_played")
         hangup = {"CallUUID": CALL, "Direction": "outbound", "From": "+919262175535", "To": "+919876543210"}
-        client.post("/api/v1/vobiz/hangup", data=hangup)
+        client.post("/api/vobiz/hangup", data=hangup)
     wait_record(logs, "vobiz_stream_ended")
 
     text = " ".join(f"{r.getMessage()} {r.__dict__}" for r in logs.records)

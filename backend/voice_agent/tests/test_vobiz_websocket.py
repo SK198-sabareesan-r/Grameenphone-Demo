@@ -477,7 +477,7 @@ def test_reconnect_with_new_stream_id_replaces_old_stream(client: TestClient) ->
 def test_play_audio_checkpoint_and_played_stream_round_trip(client: TestClient) -> None:
     with open_stream(client) as stream:
         response = client.post(
-            f"/api/v1/vobiz/streams/{CALL}/test-tone",
+            f"/api/vobiz/streams/{CALL}/test-tone",
             json={"duration_ms": 100, "frequency_hz": 440, "byte_order": "little"},
             headers=HEADERS,
         )
@@ -509,7 +509,7 @@ def test_play_audio_checkpoint_and_played_stream_round_trip(client: TestClient) 
 def test_played_stream_for_another_calls_checkpoint_is_ignored(client: TestClient) -> None:
     with open_stream(client, "call-a", "stream-a") as a, open_stream(client, "call-b", "stream-b") as b:
         for call in ("call-a", "call-b"):
-            assert client.post(f"/api/v1/vobiz/streams/{call}/test-tone", json={"duration_ms": 100}, headers=HEADERS).status_code == 200
+            assert client.post(f"/api/vobiz/streams/{call}/test-tone", json={"duration_ms": 100}, headers=HEADERS).status_code == 200
         for _ in range(6):
             recv_json(a.ws)
         name_a = [m for m in [recv_json(b.ws) for _ in range(6)] if m["event"] == "checkpoint"][0]["name"]
@@ -525,7 +525,7 @@ def test_played_stream_for_another_calls_checkpoint_is_ignored(client: TestClien
 
 def test_mulaw_stream_gets_mulaw_playback(client: TestClient) -> None:
     with open_stream(client, encoding="audio/x-mulaw", rate=8000) as stream:
-        assert client.post(f"/api/v1/vobiz/streams/{CALL}/test-tone", json={"duration_ms": 100}, headers=HEADERS).status_code == 200
+        assert client.post(f"/api/vobiz/streams/{CALL}/test-tone", json={"duration_ms": 100}, headers=HEADERS).status_code == 200
         plays = [recv_json(stream.ws) for _ in range(5)]
         assert all(m["media"]["contentType"] == "audio/x-mulaw" and m["media"]["sampleRate"] == 8000 for m in plays)
         assert all(len(base64.b64decode(m["media"]["payload"])) == 160 for m in plays)
@@ -533,13 +533,13 @@ def test_mulaw_stream_gets_mulaw_playback(client: TestClient) -> None:
 
 def test_clear_audio_round_trip_with_cleared_audio_ack(client: TestClient) -> None:
     with open_stream(client) as stream:
-        client.post(f"/api/v1/vobiz/streams/{CALL}/test-tone", json={"duration_ms": 100}, headers=HEADERS)
+        client.post(f"/api/vobiz/streams/{CALL}/test-tone", json={"duration_ms": 100}, headers=HEADERS)
         for _ in range(6):
             recv_json(stream.ws)
         assert len(stream.session.playback.pending_checkpoints) == 1
 
         with ThreadPoolExecutor(max_workers=1) as pool:
-            pending = pool.submit(lambda: client.post(f"/api/v1/vobiz/streams/{CALL}/clear", headers=HEADERS))
+            pending = pool.submit(lambda: client.post(f"/api/vobiz/streams/{CALL}/clear", headers=HEADERS))
             assert recv_json(stream.ws) == {"event": "clearAudio", "streamId": STREAM}
             assert stream.session.playback.state.value == "clearing"
             assert stream.session.playback.pending_checkpoints == frozenset()  # voided immediately
@@ -555,7 +555,7 @@ def test_cleared_audio_for_another_stream_does_not_confirm(client: TestClient) -
     with open_stream(client) as stream:
         wait_until(lambda: stream.session.playback.state.value == "idle")
         with ThreadPoolExecutor(max_workers=1) as pool:
-            pending = pool.submit(lambda: client.post(f"/api/v1/vobiz/streams/{CALL}/clear", headers=HEADERS))
+            pending = pool.submit(lambda: client.post(f"/api/vobiz/streams/{CALL}/clear", headers=HEADERS))
             recv_json(stream.ws)
             stream.ws.send_json({"event": "clearedAudio", "streamId": "someone-else"})
             wait_until(lambda: stream.session.stats.unexpected_stream == 1)
@@ -568,23 +568,23 @@ def test_nothing_is_sent_after_the_stream_closes(client: TestClient) -> None:
     with open_stream(client) as stream:
         session = stream.session
     wait_until(lambda: session.closed)
-    response = client.post(f"/api/v1/vobiz/streams/{CALL}/test-tone", json={}, headers=HEADERS)
+    response = client.post(f"/api/vobiz/streams/{CALL}/test-tone", json={}, headers=HEADERS)
     assert response.status_code == 404  # no active stream
     assert calls_of(client).current_stream(CALL) is None
 
 
 def test_control_routes_require_internal_token_and_a_stream(client: TestClient) -> None:
-    for path in (f"/api/v1/vobiz/streams/{CALL}/test-tone", f"/api/v1/vobiz/streams/{CALL}/clear"):
+    for path in (f"/api/vobiz/streams/{CALL}/test-tone", f"/api/vobiz/streams/{CALL}/clear"):
         assert client.post(path, json={}).status_code == 401
         assert client.post(path, json={}, headers={"X-Internal-Token": "wrong"}).status_code == 401
         assert client.post(path, json={}, headers=HEADERS).status_code == 404
-    assert client.get("/api/v1/vobiz/streams").status_code == 401
+    assert client.get("/api/vobiz/streams").status_code == 401
 
 
 def test_test_tone_validates_input(client: TestClient) -> None:
     with open_stream(client):
         for body in ({"duration_ms": 10}, {"duration_ms": 999999}, {"byte_order": "middle"}, {"frequency_hz": 5}, {"x": 1}):
-            response = client.post(f"/api/v1/vobiz/streams/{CALL}/test-tone", json=body, headers=HEADERS)
+            response = client.post(f"/api/vobiz/streams/{CALL}/test-tone", json=body, headers=HEADERS)
             assert response.status_code == 422
 
 
@@ -592,7 +592,7 @@ def test_stream_listing_contains_counters_but_no_audio(client: TestClient) -> No
     with open_stream(client) as stream:
         stream.ws.send_json(media_msg(b"\x00" * 640))
         wait_until(lambda: stream.session.stats.frames_received == 1)
-        body = client.get("/api/v1/vobiz/streams", headers=HEADERS).json()
+        body = client.get("/api/vobiz/streams", headers=HEADERS).json()
         assert body["connections"] == 1
         current = body["calls"][0]["current_stream"]
         assert current["frames_received"] == 1 and current["audio_format"] == "audio/x-l16;rate=16000"
@@ -611,7 +611,7 @@ def test_hangup_before_socket_closure_cleans_up_and_closes_socket(client: TestCl
         stream.ws.send_json(media_msg(b"\x00" * 640))
         wait_until(lambda: session.stats.frames_received == 1)
 
-        response = client.post("/api/v1/vobiz/hangup", data=HANGUP_FORM)  # webhook wins the race
+        response = client.post("/api/vobiz/hangup", data=HANGUP_FORM)  # webhook wins the race
         assert response.status_code == 200 and response.json()["status"] == "received"
 
         assert session.closed and session.end_reason == "hangup"
@@ -626,8 +626,8 @@ def test_hangup_before_socket_closure_cleans_up_and_closes_socket(client: TestCl
 
 
 def test_hangup_with_no_stream_is_fine_and_blocks_late_connections(client: TestClient) -> None:
-    assert client.post("/api/v1/vobiz/hangup", data=HANGUP_FORM).status_code == 200
-    assert client.post("/api/v1/vobiz/hangup", data=HANGUP_FORM).json()["duplicate"] is True  # retried callback
+    assert client.post("/api/vobiz/hangup", data=HANGUP_FORM).status_code == 200
+    assert client.post("/api/vobiz/hangup", data=HANGUP_FORM).json()["duplicate"] is True  # retried callback
 
     with client.websocket_connect(url()) as ws:  # a stream that connects after the call ended
         ws.send_json(start_msg())
@@ -642,7 +642,7 @@ def test_socket_closure_before_hangup_then_hangup_is_safe(client: TestClient) ->
         session = stream.session
     wait_until(lambda: session.closed)
     assert session.end_reason == "socket_closed"
-    assert client.post("/api/v1/vobiz/hangup", data=HANGUP_FORM).status_code == 200
+    assert client.post("/api/vobiz/hangup", data=HANGUP_FORM).status_code == 200
     assert session.end_reason == "socket_closed" and len(calls_of(client)) == 0
     assert calls_of(client).is_ended(CALL)
 
@@ -654,7 +654,7 @@ def test_answer_webhook_in_start_event_mode_puts_token_in_extra_headers_not_url(
     settings = make_settings(vobiz_ws_auth_mode="start_event")
     with TestClient(create_app(settings)) as c:
         form = {"CallUUID": CALL, "From": "+14155551234", "To": "+8801711111234", "Direction": "outbound"}
-        xml = c.post("/api/v1/vobiz/answer", data=form).text
+        xml = c.post("/api/vobiz/answer", data=form).text
         stream = ET.fromstring(xml).find("Stream")
         assert stream.text == f"wss://abc.ngrok.app/ws/vobiz/stream/{CALL}"  # no query string
         assert "token" not in urlsplit(stream.text).query
@@ -667,7 +667,7 @@ def test_answer_webhook_in_start_event_mode_puts_token_in_extra_headers_not_url(
 def test_query_mode_answer_still_uses_query_token() -> None:
     with TestClient(create_app(make_settings())) as c:
         form = {"CallUUID": CALL, "From": "+14155551234", "To": "+8801711111234", "Direction": "outbound"}
-        stream = ET.fromstring(c.post("/api/v1/vobiz/answer", data=form).text).find("Stream")
+        stream = ET.fromstring(c.post("/api/vobiz/answer", data=form).text).find("Stream")
         assert "token" in parse_qs(urlsplit(stream.text).query)
         assert "extraHeaders" not in stream.attrib
 
@@ -725,6 +725,6 @@ def test_invalid_auth_mode_fails_at_startup() -> None:
 
 def test_existing_routes_still_registered(client: TestClient) -> None:
     paths = set(client.get("/openapi.json").json()["paths"])
-    assert {"/health", "/api/v1/vobiz/calls",
-            "/api/v1/vobiz/answer", "/api/v1/vobiz/hangup", "/api/v1/vobiz/diagnostics",
-            "/api/v1/sarvam/diagnostics", "/api/v1/vobiz/streams"} <= paths
+    assert {"/health", "/api/vobiz/calls",
+            "/api/vobiz/answer", "/api/vobiz/hangup", "/api/vobiz/diagnostics",
+            "/api/sarvam/diagnostics", "/api/vobiz/streams"} <= paths

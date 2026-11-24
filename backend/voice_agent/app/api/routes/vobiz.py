@@ -59,7 +59,7 @@ def create_router(settings: Settings) -> APIRouter:
     hangup_path = _check_path("VOBIZ_HANGUP_WEBHOOK_PATH", settings.vobiz_hangup_webhook_path)
 
     @router.post(
-        "/api/v1/vobiz/calls",
+        "/api/vobiz/calls",
         status_code=202,
         response_model=OutboundCallResponse,
         dependencies=[Depends(require_internal_token)],
