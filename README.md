@@ -6,6 +6,7 @@ backend/    FastAPI service: Twilio media stream, Sarvam speech-to-text, Amazon 
   copilot/    api/ (routes), services/, models/, utils/, container.py, main.py
   data/       knowledge articles, mock customers, prompts
   requirements.txt
+backend/voice_agent/   Voice Bot service (Vobiz calls, Sarvam STT/TTS, Bedrock replies). Separate app, own settings
 frontend/   React (Vite) agent panel in the Grameenphone theme
 PLAN-AI-Copilot.md   build plan
 ```
@@ -48,6 +49,25 @@ python -m scripts.export_pdfs --upload           # also copy to S3 (needs S3_BUC
 - Every PDF starts with a line giving the title, source URL and retrieval date.
 - The script honours `robots.txt`, keeps at least a 10-second gap between pages, and reports pages the site refuses (403 and similar) without retrying them.
 - On Linux servers, install a Bengali font (for example Noto Sans Bengali) before rendering, or Bangla text will not display.
+
+## Voice agent service (`backend/voice_agent/`)
+
+A separate FastAPI service for the Voice Bot module. It has its own `app/` package, tests, requirements and
+settings, and runs on its own port. It does not import anything from the Copilot (`backend/copilot/`).
+
+```
+cd backend/voice_agent
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy config\.env.example config\.env          # then fill in the values
+uvicorn app.main:app --reload --port 8100     # 8100 so it does not clash with the Copilot on 8000
+pytest                                        # no network, no provider calls
+```
+
+- Credentials: `backend/voice_agent/config/.env` (git-ignored). It is separate from `backend/config/.env` on purpose,
+  because variables such as `SARVAM_STT_MODE` and `SARVAM_STT_STREAM_TYPE` mean different things in the two services.
+- Full details are in `backend/voice_agent/README.md`.
 
 ## Twilio setup
 
