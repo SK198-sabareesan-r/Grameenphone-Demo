@@ -8,6 +8,8 @@ from config.settings import Settings
 from copilot.repo.base import DataUnavailable
 from copilot.repo.files import FileRepo
 from copilot.services.assist import NOT_FOUND, LiveAssist
+from copilot.services.kb_retriever import KnowledgeRetriever
+from copilot.services.kb_retriever import KnowledgeRetriever
 from copilot.services.knowledge import KnowledgeBase
 from copilot.services.sessions import CallSession
 
@@ -55,7 +57,8 @@ def make(bedrock: FakeBedrock, repo_class=FileRepo):
     settings = Settings(_env_file=None, bedrock_inference_profile_arn_fast="arn:aws:bedrock:ap-south-1:1:test/x")
     hub = FakeHub()
     kb = KnowledgeBase(DATA / "knowledge" / "articles")
-    return LiveAssist(settings, bedrock, kb, hub, repo_class(settings, runtime_dir=RUNTIME)), hub
+    retriever = KnowledgeRetriever(settings, bedrock, kb)
+    return LiveAssist(settings, bedrock, retriever, hub, repo_class(settings, runtime_dir=RUNTIME)), hub
 
 
 def session_with(*lines: tuple[str, str]) -> CallSession:

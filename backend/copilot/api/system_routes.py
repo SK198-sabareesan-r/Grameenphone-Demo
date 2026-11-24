@@ -9,8 +9,9 @@ router = APIRouter(prefix="/api", tags=["system"])
 
 @router.get("/health")
 async def health(request: Request) -> dict:
-    """Also shows where the data comes from. fallback_active means DynamoDB could not be reached."""
-    return {"status": "ok", "data": get_container(request).repo.status()}
+    """Also shows where the data and the knowledge come from. fallback_active means that source could not be reached."""
+    c = get_container(request)
+    return {"status": "ok", "data": c.repo.status(), "knowledge": c.retriever.status()}
 
 
 @router.post("/data/reset", dependencies=[Depends(require_demo_controls)])
