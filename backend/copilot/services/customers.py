@@ -1,11 +1,10 @@
-"""Mock GP customer directory. A customer is found by mobile number, never listed or guessed."""
+"""Mobile numbers, and the customer as the panel and the model see it."""
 
 import re
-
-from config.settings import Settings
-from copilot.utils.helpers import load_json
+from datetime import datetime, timezone
 
 MIN_DIGITS, MAX_DIGITS = 10, 13
+_STORAGE_ONLY = ("mobile_number", "source", "team_phone")
 
 
 def normalize_number(value: str) -> str:
@@ -22,15 +21,28 @@ def is_plausible_number(value: str) -> bool:
     return MIN_DIGITS <= len(re.sub(r"\D", "", value or "")) <= MAX_DIGITS
 
 
-class CustomerDirectory:
-    def __init__(self, settings: Settings) -> None:
-        customers = load_json(settings.data_dir / "mock" / "customers.json")
-        self._by_id = {c["id"]: c for c in customers}
-        self._by_number = {normalize_number(c["msisdn"]): c for c in customers}
-        # Verified team phones used in the demo count as that customer's mobile number.
-        for phone, customer_id in settings.phone_map.items():
-            if customer_id in self._by_id:
-                self._by_number[normalize_number(phone)] = self._by_id[customer_id]
+def age_text(created_at: str | None, now: datetime) -> str:
+    """'today', '1 day' or 'N days' for an ISO timestamp. Empty when it cannot be read."""
+    try:
+        created = datetime.fromisoformat(created_at or "")
+    except ValueError:
+        return ""
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    days = (now - created).days
+    return "today" if days <= 0 else ("1 day" if days == 1 else f"{days} days")
 
-    def find_by_number(self, mobile_number: str) -> dict | None:
-        return self._by_number.get(normalize_number(mobile_number))
+
+def customer_view(item: dict, open_tickets: list[dict], now: datetime) -> dict:
+    """The customer record without storage-only fields, plus msisdn and the open tickets (oldest first)."""
+    view = {k: v for k, v in item.items() if k not in _STORAGE_ONLY}
+    view["msisdn"] = item["mobile_number"]
+    view["open_tickets"] = [
+        {
+            "id": t["ticket_id"],
+            "topic": t.get("subject") or t.get("problem") or "",
+            "age": age_text(t.get("created_at"), now),
+        }
+        for t in sorted(open_tickets, key=lambda t: t.get("created_at", ""))
+    ]
+    return view

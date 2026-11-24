@@ -9,4 +9,4 @@ router = APIRouter(prefix="/api", tags=["dashboard"])
 
 @router.get("/dashboard")
 async def get_dashboard(request: Request) -> dict:
-    return get_container(request).dashboard.build()
+    return await get_container(request).dashboard.build()

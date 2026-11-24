@@ -31,6 +31,22 @@ npm run dev          # http://localhost:5173, proxies /api to the backend
 npm run build        # output in frontend/dist, served by the backend when present
 ```
 
+## Data and credentials
+
+- **Credentials live only in `.env` files.** `backend/config/.env`, `backend/voice_agent/config/.env` and `frontend/.env.local` are git-ignored. Only the `.env.example` files are committed. Nothing in the code holds a key, token or table name that is not read from `.env` (the table prefix is `DYNAMODB_TABLE_PREFIX`).
+- **The Copilot's data is in DynamoDB**, in six tables named `<prefix>customers`, `network-areas`, `tickets`, `calls`, `packs` and `gp-centres`. What each table holds is in `backend/data/seed-data-plan.md`.
+- **Seed the tables** (once, and again after editing the JSON in `backend/data/mock`):
+
+```
+cd backend
+python -m scripts.seed_dynamodb --dry-run     # show what would be written
+python -m scripts.seed_dynamodb               # write it, then read every item back
+```
+
+- **If DynamoDB cannot be reached** (for example the AWS credentials expired), the Copilot keeps working from the local seed files. It tries DynamoDB again after `DATA_RETRY_AFTER_S` seconds. Anything written meanwhile stays in the local files only. `GET /api/health` shows `"fallback_active": true` and the reason. Set `DATA_FALLBACK_TO_FILES=false` to fail instead, or `DATA_BACKEND=files` to run without AWS.
+- **Adding a team phone:** put `+8801XXXXXXXXX:rahim` in `DEMO_PHONE_MAP` and run the seed again, so the table has an item for that number.
+- The AWS keys are temporary. When they expire, replace the three `AWS_*` values in `backend/config/.env`.
+
 ## Export official pages as PDFs (for Bedrock Data Automation)
 
 ```
@@ -78,9 +94,9 @@ pytest                                        # no network, no provider calls
 
 | Group | Method | Path | Purpose |
 |---|---|---|---|
-| System | GET | `/api/health` | Health check |
+| System | GET | `/api/health` | Health check, and whether the data comes from DynamoDB or the fallback files |
 | System | GET | `/api/softphone/token` | Browser softphone access token |
-| System | POST | `/api/data/reset` | Clear the current call, tickets and saved calls |
+| System | POST | `/api/data/reset` | Clear the current call, the tickets the app created, and all saved calls. Seeded data stays |
 | Twilio | POST | `/api/twilio/voice` | Voice webhook |
 | Twilio | POST | `/api/twilio/recording` | Recording callback |
 | Twilio | WS | `/api/twilio/stream` | Media stream |

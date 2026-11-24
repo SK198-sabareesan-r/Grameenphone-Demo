@@ -6,8 +6,9 @@ Run from the backend folder:  uvicorn copilot.main:app --host 0.0.0.0 --port 800
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from config.settings import get_settings
@@ -28,6 +29,7 @@ from copilot.api import (
     twilio_routes,
 )
 from copilot.container import build_container
+from copilot.repo import DataUnavailable
 
 ROUTERS = (
     system_routes,
@@ -54,12 +56,22 @@ async def lifespan(app: FastAPI):
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    app.state.container = build_container(settings)
+    container = app.state.container = build_container(settings)
+    try:
+        await container.areas.load()  # the area names the agent can type, ready before the first call
+    except Exception:
+        log.exception("Could not load the network areas at startup. They are loaded on first use.")
     yield
 
 
+async def data_unavailable_handler(_: Request, error: DataUnavailable) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": f"The data store is not available ({error})"})
+
+
+log = logging.getLogger(__name__)
 settings = get_settings()
 app = FastAPI(title="Grameenphone AI Copilot", lifespan=lifespan)
+app.add_exception_handler(DataUnavailable, data_unavailable_handler)
 
 if settings.cors_origin_list:
     app.add_middleware(

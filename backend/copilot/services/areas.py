@@ -1,9 +1,9 @@
-"""Mock network status by area. The agent can check any area the customer names."""
+"""Network status by area. Areas and their names are loaded once. A status is read fresh each time it is
+checked, so a notice edited in the table shows up on the next check."""
 
 import re
-from pathlib import Path
 
-from copilot.utils.helpers import load_json
+from copilot.repo.base import Repo
 
 NO_NOTICE = "No network notice on file for this area"
 _SEPARATORS = re.compile(r"[\s.,;:!?\"'()\[\]{}\-/।]+")
@@ -15,17 +15,30 @@ def normalize_text(text: str) -> str:
 
 
 class NetworkAreas:
-    def __init__(self, path: Path) -> None:
-        self._areas: dict[str, dict] = load_json(path)["areas"]
+    def __init__(self, repo: Repo) -> None:
+        self._repo = repo
+        self._names: list[str] = []
+        self._aliases: list[tuple[str, str]] = []
+        self._loaded = False
+
+    async def load(self) -> None:
+        """Read every area (a handful of rows) so typed names can be matched without a lookup per keystroke."""
+        rows = await self._repo.list_areas()
         pairs = [
-            (normalize_text(alias), name)
-            for name, info in self._areas.items()
-            for alias in {name, *info.get("aliases", [])}
+            (normalize_text(alias), row["area"])
+            for row in rows
+            for alias in {row["area"], *row.get("aliases", [])}
         ]
         self._aliases = sorted(pairs, key=lambda pair: len(pair[0]), reverse=True)  # longest match first
+        self._names = sorted(row["area"] for row in rows)
+        self._loaded = True
+
+    async def ensure_loaded(self) -> None:
+        if not self._loaded:
+            await self.load()
 
     def names(self) -> list[str]:
-        return list(self._areas)
+        return list(self._names)
 
     def resolve(self, text: str) -> str | None:
         """Area for what the agent typed: an exact name or alias, or one mentioned inside a sentence."""
@@ -42,10 +55,12 @@ class NetworkAreas:
                 return name
         return None
 
-    def status(self, area_text: str) -> dict:
+    async def status(self, area_text: str) -> dict:
         """Status for one area. An area with no notice says so and does not claim the network is fine."""
+        await self.ensure_loaded()
         name = self.resolve(area_text) or area_text.strip()
-        notice = (self._areas.get(name) or {}).get("notice")
+        row = await self._repo.get_area(name)
+        notice = (row or {}).get("notice")
         if notice:
             return {"area": name, **notice}
         return {"area": name, "status": "no_notice", "message": NO_NOTICE, "until": None}

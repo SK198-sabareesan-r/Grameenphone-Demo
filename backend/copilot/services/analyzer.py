@@ -88,5 +88,5 @@ class TurnAnalyzer:
         }
         session.mood_history.append(session.mood["customer"])
         await self._hub.broadcast("mood", session.mood)
-        if self._nba.show(session, result.get("suggestion_id")):
+        if await self._nba.show(session, result.get("suggestion_id")):
             await self._hub.broadcast("suggestions", list(session.suggestions.values()))
