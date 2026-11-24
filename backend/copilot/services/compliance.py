@@ -1,19 +1,32 @@
-"""Rule-based compliance reminders. Predictable on purpose, so the demo behaves the same each run."""
+"""Rule-based compliance reminders. Predictable on purpose, so the demo behaves the same each run.
+
+Rules are about what people say. Speakers in the rule file ("agent", "customer") are normalised to
+participant roles at load time, and AI-agent speech never triggers or satisfies a rule.
+"""
 
 from pathlib import Path
 
+from copilot.models.participants import COMPLIANCE_SPEAKERS, normalize_speaker
 from copilot.utils.helpers import contains_any, load_json
 
 
 class ComplianceEngine:
     def __init__(self, rules_path: Path) -> None:
         self.rules: list[dict] = load_json(rules_path)
+        for rule in self.rules:
+            for part in ("trigger", "satisfy"):
+                rule[part]["speaker"] = normalize_speaker(rule[part]["speaker"])
+                if rule[part]["speaker"] not in COMPLIANCE_SPEAKERS:
+                    raise ValueError(f"compliance rule {rule['id']}: {part} speaker must be a person")
 
     def initial_states(self) -> dict[str, str]:
         return {rule["id"]: "idle" for rule in self.rules}
 
     def evaluate(self, states: dict[str, str], speaker: str, text: str) -> bool:
         """Update states in place from one spoken turn. Returns True if anything changed."""
+        speaker = normalize_speaker(speaker)
+        if speaker not in COMPLIANCE_SPEAKERS:
+            return False
         changed = False
         for rule in self.rules:
             new_state = self._next_state(rule, states[rule["id"]], speaker, text)

@@ -23,6 +23,8 @@ frontend/dist/
 
 # Runtime data
 backend/data/runtime/
+# Copilot login users (password hashes)
+backend/config/users.json
 
 # Misc
 *.log

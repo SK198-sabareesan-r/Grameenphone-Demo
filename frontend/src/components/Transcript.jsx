@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 
-const SPEAKER_LABEL = { agent: "Agent", customer: "Customer" };
+// Three separate identities. "agent" is the older name for the human agent (older call records).
+const SPEAKER_LABEL = {
+  customer: "Customer",
+  ai_agent: "AI agent",
+  human_agent: "Agent",
+  agent: "Agent",
+};
 
 function Line({ speaker, text, partial }) {
   return (
@@ -33,7 +39,8 @@ function TypedLine() {
     <form className="typed-line" onSubmit={submit}>
       <select value={speaker} onChange={(e) => setSpeaker(e.target.value)} aria-label="Speaker">
         <option value="customer">Customer</option>
-        <option value="agent">Agent</option>
+        <option value="human_agent">Agent</option>
+        <option value="ai_agent">AI agent</option>
       </select>
       <input
         value={text}
@@ -50,8 +57,10 @@ function TypedLine() {
 
 export default function Transcript({ turns, partials }) {
   const endRef = useRef(null);
-  useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [turns, partials]);
-  const empty = turns.length === 0 && !partials.customer && !partials.agent;
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [turns, partials]);
+  const empty = turns.length === 0 && !Object.values(partials).some(Boolean);
 
   return (
     <div className="card transcript-card">

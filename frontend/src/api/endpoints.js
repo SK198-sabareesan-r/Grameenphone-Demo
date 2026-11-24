@@ -1,8 +1,10 @@
 // Every backend path in one place.
 export const API = {
   health: "/api/health",
+  login: "/api/auth/login",
+  me: "/api/auth/me",
+  wsTicket: "/api/auth/ws-ticket",
   panelStream: "/api/panel/stream",
-  softphoneToken: "/api/softphone/token",
   currentCall: "/api/calls/current",
   endCall: "/api/calls/current/end",
   transcript: "/api/transcript",

@@ -3,11 +3,13 @@
 import time
 from dataclasses import dataclass, field
 
+from copilot.models.participants import TRANSCRIPT_LABELS
+
 
 @dataclass
 class Turn:
     id: int
-    speaker: str
+    speaker: str  # a participant role: customer | ai_agent | human_agent
     text: str
     ts: float
 
@@ -37,8 +39,11 @@ class CallSession:
         return turn
 
     def transcript_text(self, last: int | None = None) -> str:
+        """Transcript for the model, one line per turn, labelled CUSTOMER / AI AGENT / HUMAN AGENT."""
         turns = self.turns[-last:] if last else self.turns
-        return "\n".join(f"{t.speaker.upper()}: {t.text}" for t in turns)
+        return "\n".join(
+            f"{TRANSCRIPT_LABELS.get(t.speaker, t.speaker.upper())}: {t.text}" for t in turns
+        )
 
     def card(self) -> dict | None:
         if not self.card_visible:

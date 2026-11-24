@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from config.settings import Settings
 from copilot.services.analyzer import TurnAnalyzer
 from copilot.services.ask import AskCopilot
+from copilot.services.auth import AuthService
 from copilot.services.bedrock import BedrockClient
 from copilot.services.compliance import ComplianceEngine
 from copilot.services.customers import CustomerDirectory
@@ -20,15 +21,10 @@ from copilot.services.tickets import TicketStore
 
 log = logging.getLogger(__name__)
 REQUIRED_SETTINGS = (
-    "public_base_url",
+    "copilot_session_secret",
     "aws_region",
     "bedrock_inference_profile_arn_fast",
     "bedrock_inference_profile_arn_summary",
-    "sarvam_api_key",
-    "twilio_account_sid",
-    "twilio_auth_token",
-    "twilio_api_key_sid",
-    "twilio_api_key_secret",
 )
 
 
@@ -47,14 +43,17 @@ class Container:
     tickets: TicketStore
     storage: CallStorage
     dashboard: DashboardService
+    auth: AuthService
 
 
-def build_container(settings: Settings) -> Container:
+def build_container(settings: Settings, *, bedrock: BedrockClient | None = None) -> Container:
+    """Build every service. `bedrock` lets tests inject a fake client; None builds the real one."""
     missing = settings.missing(*REQUIRED_SETTINGS)
     if missing:
         log.warning("config/.env is missing: %s. Related features will not work.", ", ".join(missing))
     data = settings.data_dir
-    hub, bedrock = PanelHub(), BedrockClient(settings)
+    hub = PanelHub()
+    bedrock = bedrock or BedrockClient(settings)
     storage = CallStorage(settings)
     knowledge = KnowledgeBase(data / "knowledge" / "articles")
     nba = NbaCatalog(data / "mock" / "nba_rules.json")
@@ -72,4 +71,5 @@ def build_container(settings: Settings) -> Container:
         tickets=TicketStore(settings),
         storage=storage,
         dashboard=DashboardService(settings, storage),
+        auth=AuthService(settings),
     )

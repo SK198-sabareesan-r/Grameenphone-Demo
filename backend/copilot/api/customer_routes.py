@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter, HTTPException, Request
 
-from copilot.api.deps import get_container
+from fastapi import Depends
+
+from copilot.api.deps import get_container, require_demo_controls
 from copilot.models.schemas import ActiveCustomerRequest
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
@@ -21,7 +23,7 @@ async def get_active_customer(request: Request) -> dict:
     return {"active": c.customers.override_id or c.settings.demo_default_customer_id}
 
 
-@router.put("/active")
+@router.put("/active", dependencies=[Depends(require_demo_controls)])
 async def set_active_customer(body: ActiveCustomerRequest, request: Request) -> dict:
     c = get_container(request)
     if not c.customers.get(body.customer_id):

@@ -3,7 +3,8 @@ export const initialCallState = {
   active: false,
   ended: false,
   turns: [],
-  partials: { customer: "", agent: "" },
+  // One in-progress line per participant: customer, AI agent (voice bot), human agent.
+  partials: { customer: "", ai_agent: "", human_agent: "" },
   card: null,
   mood: { customer: "neutral", agent: "neutral", tip: null },
   compliance: [],
@@ -11,14 +12,12 @@ export const initialCallState = {
   summary: null,
   ticket: null,
   recordingUrl: "",
-  sttStatus: {},
 };
 
 // Replace the whole call from a snapshot sent by the backend.
-function fromView(view, previous) {
+function fromView(view) {
   return {
     ...initialCallState,
-    sttStatus: previous.sttStatus,
     active: true,
     callSid: view.call_sid,
     ended: view.ended,
@@ -46,7 +45,7 @@ export function callReducer(state, action) {
   switch (type) {
     case "snapshot":
     case "call.started":
-      return fromView(data, state);
+      return fromView(data);
     case "transcript":
       return applyTranscript(state, data);
     case "card":
@@ -58,15 +57,11 @@ export function callReducer(state, action) {
     case "suggestions":
       return { ...state, suggestions: data };
     case "call.ended":
-      return { ...state, ended: true, partials: { customer: "", agent: "" } };
+      return { ...state, ended: true, partials: { ...initialCallState.partials } };
     case "summary":
       return { ...state, summary: data };
     case "ticket.created":
       return { ...state, ticket: data };
-    case "recording":
-      return { ...state, recordingUrl: data.url };
-    case "stt.status":
-      return { ...state, sttStatus: { ...state.sttStatus, [data.speaker]: data.status } };
     case "reset":
       return { ...initialCallState };
     default:

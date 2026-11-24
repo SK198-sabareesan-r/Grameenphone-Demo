@@ -1,10 +1,14 @@
 """Shared FastAPI dependencies."""
 
-from fastapi import HTTPException, Request
-from twilio.request_validator import RequestValidator
+from collections.abc import Callable
+
+from fastapi import Depends, HTTPException, Request
 
 from copilot.container import Container
+from copilot.services.auth import ROLE_RANK, User
 from copilot.services.sessions import CallSession
+
+BEARER = "bearer "
 
 
 def get_container(request: Request) -> Container:
@@ -19,16 +23,34 @@ def require_session(request: Request) -> CallSession:
     return session
 
 
-async def verify_twilio_signature(request: Request) -> None:
-    """Reject webhook calls not signed by Twilio, when enabled in config/.env."""
-    settings = request.app.state.container.settings
-    if not settings.twilio_validate_signature:
-        return
-    form = await request.form()
-    url = settings.public_base_url.rstrip("/") + request.url.path
-    if request.url.query:
-        url += "?" + request.url.query
-    validator = RequestValidator(settings.twilio_auth_token.get_secret_value())
-    signature = request.headers.get("X-Twilio-Signature", "")
-    if not validator.validate(url, dict(form), signature):
-        raise HTTPException(status_code=403, detail="Invalid Twilio signature")
+def require_user(request: Request) -> User:
+    """A valid `Authorization: Bearer <token>`, or 401."""
+    header = request.headers.get("authorization", "")
+    token = header[len(BEARER):].strip() if header.lower().startswith(BEARER) else ""
+    user = get_container(request).auth.verify_token(token)
+    if user is None:
+        raise HTTPException(
+            status_code=401, detail="Sign in required", headers={"WWW-Authenticate": "Bearer"}
+        )
+    request.state.user = user
+    return user
+
+
+def require_role(minimum: str) -> Callable[..., User]:
+    """Dependency factory: the signed-in user must have at least `minimum` (agent < supervisor)."""
+    if minimum not in ROLE_RANK:
+        raise ValueError(f"unknown role {minimum!r}")
+
+    def check(user: User = Depends(require_user)) -> User:
+        if not user.has_role(minimum):
+            raise HTTPException(status_code=403, detail="Not allowed for your role")
+        return user
+
+    return check
+
+
+def require_demo_controls(request: Request, user: User = Depends(require_user)) -> User:
+    """Demo-only operations (customer picker, data reset). Off unless DEMO_CONTROLS_ENABLED=true."""
+    if not get_container(request).settings.demo_controls_enabled:
+        raise HTTPException(status_code=403, detail="Demo controls are disabled")
+    return user

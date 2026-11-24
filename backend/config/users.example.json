@@ -1,0 +1,18 @@
+{
+  "users": [
+    {
+      "username": "tania",
+      "name": "Tania",
+      "role": "agent",
+      "password_hash": "scrypt$16384$8$1$<salt>$<hash>  (create with: python -m scripts.hash_password --username tania --name Tania --role agent)",
+      "disabled": false
+    },
+    {
+      "username": "lead",
+      "name": "Team lead",
+      "role": "supervisor",
+      "password_hash": "scrypt$16384$8$1$<salt>$<hash>",
+      "disabled": false
+    }
+  ]
+}

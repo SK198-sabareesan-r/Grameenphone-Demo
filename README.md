@@ -1,7 +1,7 @@
 ﻿# Grameenphone AI Copilot (demo)
 
 ```
-backend/    FastAPI service: Twilio media stream, Sarvam speech-to-text, Amazon Bedrock, mock GP data
+backend/    Copilot FastAPI service: sign-in, live panel events, Amazon Bedrock analysis, mock GP data
   config/     settings.py and .env (all credentials live here, git-ignored)
   copilot/    api/ (routes), services/, models/, utils/, container.py, main.py
   data/       knowledge articles, mock customers, prompts
@@ -19,9 +19,20 @@ Backend (from `backend/`):
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-copy config\.env.example config\.env      # then fill in the values
+copy config\.env.example config\.env      # then fill in the values (COPILOT_SESSION_SECRET is required)
+python -m scripts.hash_password --username tania --name "Tania" --role agent   # creates config/users.json
 uvicorn copilot.main:app --host 0.0.0.0 --port 8000
+pytest                                    # Copilot tests: no network, no provider calls
 ```
+
+Sign-in:
+
+- Agents sign in with a username and password from `config/users.json` (git-ignored, scrypt hashes).
+  Roles: `agent`, `supervisor` (supervisor includes agent). Restart the backend after editing users.
+- Every `/api` route except `GET /api/health` and `POST /api/auth/login` needs `Authorization: Bearer <token>`.
+- The panel WebSocket uses a one-time ticket from `POST /api/auth/ws-ticket` (`/api/panel/stream?ticket=...`).
+- The customer picker and "Reset demo data" work only with `DEMO_CONTROLS_ENABLED=true`.
+- `/docs` and `/openapi.json` are off unless `COPILOT_API_DOCS_ENABLED=true`.
 
 Frontend (from `frontend/`):
 
@@ -69,22 +80,23 @@ pytest                                        # no network, no provider calls
   because variables such as `SARVAM_STT_MODE` and `SARVAM_STT_STREAM_TYPE` mean different things in the two services.
 - Full details are in `backend/voice_agent/README.md`.
 
-## Twilio setup
+## Telephony
 
-- Voice webhook (TwiML App and phone number): `POST {PUBLIC_BASE_URL}/api/twilio/voice`
-- The backend returns TwiML that streams both call legs to `wss://{host}/api/twilio/stream` and rings the browser softphone.
+Phone calls are handled by the voice agent (Vobiz). The Copilot is not yet connected to it: calls on
+the panel come from typed lines until the voice-to-Copilot integration is added.
 
-## API
+## API (Copilot)
+
+All routes need a signed-in agent except where marked public.
 
 | Group | Method | Path | Purpose |
 |---|---|---|---|
-| System | GET | `/api/health` | Health check |
-| System | GET | `/api/softphone/token` | Browser softphone access token |
-| System | POST | `/api/data/reset` | Clear the current call, tickets and saved calls |
-| Twilio | POST | `/api/twilio/voice` | Voice webhook |
-| Twilio | POST | `/api/twilio/recording` | Recording callback |
-| Twilio | WS | `/api/twilio/stream` | Media stream |
-| Call | WS | `/api/panel/stream` | Live events to the panel |
+| System | GET | `/api/health` | Health check (public) |
+| System | POST | `/api/data/reset` | Clear the current call, tickets and saved calls (demo controls only) |
+| Auth | POST | `/api/auth/login` | Sign in, returns a bearer token (public) |
+| Auth | GET | `/api/auth/me` | Current user and whether demo controls are on |
+| Auth | POST | `/api/auth/ws-ticket` | One-time ticket for the panel WebSocket |
+| Call | WS | `/api/panel/stream?ticket=` | Live events to the panel |
 | Call | GET | `/api/calls/current` | Current call state |
 | Call | POST | `/api/calls/current/end` | End the call on screen |
 | Transcript | GET | `/api/transcript` | Turns so far |
@@ -104,5 +116,5 @@ pytest                                        # no network, no provider calls
 | Knowledge | GET | `/api/knowledge/articles` | Articles in the knowledge pack |
 | Customers | GET | `/api/customers` | Mock customers |
 | Customers | GET | `/api/customers/{id}` | One customer record |
-| Customers | GET / PUT | `/api/customers/active` | Customer used for the next call |
+| Customers | GET / PUT | `/api/customers/active` | Customer used for the next call (PUT: demo controls only) |
 | Dashboard | GET | `/api/dashboard` | Adoption numbers |
