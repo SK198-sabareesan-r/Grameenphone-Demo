@@ -1,4 +1,4 @@
-"""Adoption dashboard: seeded sample numbers plus live numbers from this machine's calls."""
+"""Adoption dashboard: seeded sample numbers plus live numbers from the saved calls."""
 
 from collections import Counter
 
@@ -12,11 +12,11 @@ class DashboardService:
         self._seed = load_json(settings.data_dir / "mock" / "dashboard_seed.json")
         self._storage = storage
 
-    def build(self) -> dict:
-        records = self._storage.all_records()
-        shown = sum(len(r["suggestions"]) for r in records)
-        used = sum(1 for r in records for s in r["suggestions"] if s["used"])
-        moods = Counter(m for r in records for m in r["mood_history"])
+    async def build(self) -> dict:
+        records = await self._storage.all_records()
+        shown = sum(len(r.get("suggestions", [])) for r in records)
+        used = sum(1 for r in records for s in r.get("suggestions", []) if s.get("used"))
+        moods = Counter(m for r in records for m in r.get("mood_history", []))
         seed = self._seed
         return {
             "label": seed["label"],

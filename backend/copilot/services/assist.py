@@ -11,6 +11,7 @@ import logging
 import re
 
 from config.settings import Settings
+from copilot.repo.base import DataUnavailable, Repo
 from copilot.services.bedrock import BedrockClient
 from copilot.services.hub import PanelHub
 from copilot.services.knowledge import Article, KnowledgeBase
@@ -33,13 +34,13 @@ def _words(text: str) -> list[str]:
 
 class LiveAssist:
     def __init__(
-        self, settings: Settings, bedrock: BedrockClient, kb: KnowledgeBase, hub: PanelHub
+        self, settings: Settings, bedrock: BedrockClient, kb: KnowledgeBase, hub: PanelHub, repo: Repo
     ) -> None:
         self._enabled = settings.assist_enabled
         self._model = settings.bedrock_inference_profile_arn_fast
         self._timeout_s = settings.assist_timeout_s
         self._limit = settings.assist_max_articles
-        self._bedrock, self._kb, self._hub = bedrock, kb, hub
+        self._bedrock, self._kb, self._hub, self._repo = bedrock, kb, hub, repo
         self._template = read_text(settings.data_dir / "prompts" / "live_assist.md")
         smalltalk = load_json(settings.data_dir / "mock" / "smalltalk.json")
         self._max_words = int(smalltalk["max_words"])
@@ -98,10 +99,24 @@ class LiveAssist:
     async def _handle(self, session: CallSession, turn: Turn) -> dict:
         articles = self._kb.search(self._query(session, turn), self._limit)
         await self._hub.broadcast("answer.pending", {"turn_id": turn.id, "question": turn.text})
-        entry = await self._generate(session, turn, articles)
+        packs, centres = await self._reference(session)
+        entry = await self._generate(session, turn, articles, packs, centres)
         session.set_answer(entry)
         await self._hub.broadcast("answer", entry)
         return entry
+
+    async def _reference(self, session: CallSession) -> tuple[list[dict], list[dict]]:
+        """The pack catalog, and the GP Centres in the customer's registered area and current location."""
+        areas = [(session.customer or {}).get("area"), (session.current_location or {}).get("area")]
+        areas = list(dict.fromkeys(a for a in areas if a))
+        try:
+            packs, *by_area = await asyncio.gather(
+                self._repo.list_packs(), *[self._repo.list_centres(a) for a in areas]
+            )
+        except DataUnavailable as error:
+            log.warning("Packs and GP Centres are not available for this lookup: %s", error)
+            return [], []
+        return packs, [c for centres in by_area for c in centres]
 
     def _query(self, session: CallSession, turn: Turn) -> str:
         if len(turn.text.split()) >= SHORT_SENTENCE_WORDS:
@@ -111,12 +126,16 @@ class LiveAssist:
         )
         return f"{previous} {turn.text}".strip()
 
-    async def _generate(self, session: CallSession, turn: Turn, articles: list[Article]) -> dict:
+    async def _generate(
+        self, session: CallSession, turn: Turn, articles: list[Article], packs: list[dict], centres: list[dict]
+    ) -> dict:
         prompt = render_prompt(
             self._template,
             identity_verified="yes" if session.compliance.get("verify_identity") == "green" else "no",
             customer=session.customer,
             network=session.network_view(),
+            packs=self._packs_block(packs),
+            centres=self._centres_block(centres),
             articles=self._articles_block(articles),
             transcript=session.transcript_text(last=8),
             question=turn.text,
@@ -130,6 +149,29 @@ class LiveAssist:
         except Exception:
             log.exception("Bedrock lookup failed, showing the matching articles only")
             return self._search_only(turn, articles)
+
+    @staticmethod
+    def _packs_block(packs: list[dict]) -> str:
+        if not packs:
+            return "(none)"
+        lines = []
+        for p in sorted(packs, key=lambda p: p["pack_id"]):
+            code = p.get("activation_code") or "none published"
+            flag = " [sample offer]" if p.get("sample_offer") else ""
+            lines.append(
+                f"- {p['name']}: Tk {p['price_bdt']}, {p['validity_days']} days, activation code: {code}{flag}"
+            )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _centres_block(centres: list[dict]) -> str:
+        if not centres:
+            return "(none)"
+        return "\n".join(
+            f"- {c['name']} ({c['area']}): {c['address']}, open {c.get('hours') or 'hours not listed'}"
+            + (" [sample placeholder, not a real address]" if c.get("type") == "sample" else "")
+            for c in centres
+        )
 
     @staticmethod
     def _articles_block(articles: list[Article]) -> str:

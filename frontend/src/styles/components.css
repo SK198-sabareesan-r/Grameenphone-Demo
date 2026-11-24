@@ -330,6 +330,17 @@
   font-size: 13px;
 }
 
+.suggestion-detail {
+  margin: 6px 0 0;
+  font-weight: 400;
+}
+
+.suggestion-centres {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
 .suggestion.used {
   border-color: var(--gp-border);
   background: var(--gp-surface);

@@ -86,7 +86,7 @@ class CallSession:
 
     def to_record(self) -> dict:
         return {
-            "call_sid": self.call_sid,
+            "call_id": self.call_sid,  # the key of the calls table
             "customer_id": (self.customer or {}).get("id"),
             "identified_at": self.identified_at,
             "current_location": self.current_location,

@@ -14,8 +14,9 @@ Access rules:
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from config.settings import Settings, get_settings
@@ -39,7 +40,10 @@ from copilot.api import (
 )
 from copilot.api.deps import require_role
 from copilot.container import build_container
+from copilot.repo import DataUnavailable
 from copilot.services.bedrock import BedrockClient
+
+log = logging.getLogger(__name__)
 
 # Routers that protect themselves: public routes, or routes with their own checks.
 SELF_PROTECTED_ROUTERS = (
@@ -82,7 +86,11 @@ def create_app(
             level=settings.log_level.upper(),
             format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         )
-        app.state.container = build_container(settings, bedrock=bedrock)
+        container = app.state.container = build_container(settings, bedrock=bedrock)
+        try:
+            await container.areas.load()  # the area names the agent can type, ready before the first call
+        except Exception:
+            log.exception("Could not load the network areas at startup. They are loaded on first use.")
         yield
 
     docs = settings.copilot_api_docs_enabled
@@ -93,6 +101,10 @@ def create_app(
         redoc_url=None,
         openapi_url="/openapi.json" if docs else None,
     )
+
+    @app.exception_handler(DataUnavailable)
+    async def data_unavailable(_: Request, error: DataUnavailable) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": f"The data store is not available ({error})"})
 
     if settings.cors_origin_list:
         app.add_middleware(

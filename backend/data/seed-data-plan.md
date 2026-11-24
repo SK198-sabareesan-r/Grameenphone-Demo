@@ -8,7 +8,7 @@ Labels used in the "Basis" columns:
 - **Mock**: invented so the demo can run. It must be called a mock on screen.
 - **Sample**: the playbook itself marks it "(sample)".
 
-**Status (2026-11-24).** The six DynamoDB tables exist in region `ap-south-1` and hold 31 seeded items. The app does not read them yet. It still reads the JSON files listed in section 4. Wiring the app to the tables is the next step.
+**Status (2026-11-24).** The six DynamoDB tables exist in region `ap-south-1` and hold 31 seeded items. The app reads and writes them. If DynamoDB cannot be reached, it answers from the local seed files instead (see section 5). `GET /api/health` shows which one is in use.
 
 ## 1. Where each kind of data lives
 
@@ -29,7 +29,7 @@ Table names are the prefix plus the short name. The prefix is `gp-copilot-` and 
 |---|---|---|---|---|
 | `gp-copilot-customers` | `mobile_number` | none | 5 | The customer card: plan, balance, pack, recent recharges, bill |
 | `gp-copilot-network-areas` | `area` | none | 7 | Network status for each area, and the names the agent may type for it |
-| `gp-copilot-tickets` | `customer_id` | `ticket_id` | 3 | Support tickets: Karim's earlier ones now, new ones from the app |
+| `gp-copilot-tickets` | `customer_id` | `ticket_id` | 3 | Support tickets: Karim's earlier ones now, new ones from the app. A ticket raised with no confirmed customer is filed under `unidentified`. |
 | `gp-copilot-calls` | `call_id` | none | 0 | One record per call, written by the app |
 | `gp-copilot-packs` | `pack_id` | none | 5 | Pack catalog: price, validity, activation code |
 | `gp-copilot-gp-centres` | `area` | `name` | 11 | GP Centres by area, for the lost-SIM case |
@@ -232,18 +232,24 @@ Bangla versions are not written yet. Each article carries its source URL, fetch 
 
 ## 5. When data is read or written during a call
 
-| Moment | What happens | Table or file | Where it reads from today |
-|---|---|---|---|
-| Call connects | Nothing about the customer is loaded. The caller ID only pre-fills the mobile number box. | none | none |
-| Agent confirms the mobile number | The customer card loads, with the network status of the registered area and the open tickets | customers, network-areas, tickets | `customers.json` and `network_areas.json`. Open tickets come from `customers.json`. |
-| Customer reports a network problem | The panel prompts the agent to ask where the customer is | `network_keywords.json` | The file |
-| Agent enters the current location | Network status for that area | network-areas | `network_areas.json` |
-| Each customer sentence | Matching articles, the card and both area statuses go into one model call | articles | Files |
-| Offering a pack (CP3, CP4, CP10) | Pack price, validity, code | packs | Not wired. The answers use the articles. |
-| Lost SIM (CP9) | The GP Centres for the customer's area | gp-centres | Not wired |
-| Agent submits the ticket | A new ticket is saved and numbered | tickets | A local file |
-| Call ends | The whole call record is saved | calls, plus S3 for files | A local JSON file. S3 only if `S3_BUCKET` is set. |
-| Dashboard | Totals over saved calls, plus sample figures | calls, `dashboard_seed.json` | Local files |
+| Moment | What happens | Table or file |
+|---|---|---|
+| Startup | All 7 areas are loaded, so typed names (English or Bangla) can be matched | network-areas |
+| Call connects | Nothing about the customer is loaded. The caller ID only pre-fills the mobile number box. | none |
+| Agent confirms the mobile number | One read of the customer by number. Then, in parallel, the customer's open tickets and the network status of the registered area. The card is built from these. | customers, tickets, network-areas |
+| Customer reports a network problem | The panel prompts the agent to ask where the customer is | `network_keywords.json` |
+| Agent enters the current location | The area name is matched, then its status is read fresh from the table, so an edited notice shows on the next check | network-areas |
+| Each customer sentence | Matching articles, the pack catalog, the GP Centres of the customer's areas, the card and both area statuses go into one model call | articles, packs, gp-centres |
+| Suggestion shown: bigger pack or roaming pack (CP3, CP4, CP10) | The suggestion carries the pack's name, price, validity and activation code | packs |
+| Suggestion shown: lost SIM (CP9) | The suggestion carries up to 3 GP Centres per area, for the registered area and the current location | gp-centres |
+| Agent submits the ticket | The next free number (from `TICKET_START_NUMBER`) is saved with a check that it does not already exist. A second ticket created at the same moment takes the next number. | tickets |
+| Call ends, or a ticket is created | The whole call record is saved. A copy goes to S3 only if `S3_BUCKET` is set. | calls |
+| Dashboard | Totals over the saved calls, plus the sample figures | calls, `dashboard_seed.json` |
+| Reset | Deletes the tickets the app created and all calls. Seeded tickets stay. | tickets, calls |
+
+**If DynamoDB cannot be reached** (for example the AWS credentials expired), every read above is answered from the local seed files and every write goes to local files. DynamoDB is tried again after `DATA_RETRY_AFTER_S` seconds. Whatever was written meanwhile is not copied to the tables later. `GET /api/health` shows `fallback_active` and the reason.
+
+**Speed, measured from a laptop to `ap-south-1`:** one read takes about 31 to 39 ms once connected. The identity-confirm reads together took about 250 ms the first time, which opens the connections, and 50 to 63 ms afterwards. It has not been measured from EC2 or during a call.
 
 ## 6. Seeding
 
@@ -254,6 +260,7 @@ python -m scripts.seed_dynamodb --dry-run     show what would be written, change
 python -m scripts.seed_dynamodb               write the data, then read every item back and compare
 ```
 
+- The items are built by `copilot/repo/seed.py`, the same code the local-file fallback uses, so the tables and the fallback always hold the same data.
 - It is safe to repeat. It overwrites items and never deletes anything.
 - It touches only the six tables named by `DYNAMODB_TABLE_PREFIX`. It checks that each exists with the right keys before it writes anything.
 - Credentials and region come from `config/.env`. They are temporary credentials, so an expired-token error means refreshing the `AWS_*` values.

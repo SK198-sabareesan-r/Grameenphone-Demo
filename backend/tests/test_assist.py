@@ -1,15 +1,26 @@
 """Tests for the automatic lookup. No network: Bedrock and the panel hub are replaced by fakes."""
 
 import asyncio
+import tempfile
 from pathlib import Path
 
 from config.settings import Settings
+from copilot.repo.base import DataUnavailable
+from copilot.repo.files import FileRepo
 from copilot.services.assist import NOT_FOUND, LiveAssist
 from copilot.services.knowledge import KnowledgeBase
 from copilot.services.sessions import CallSession
 
 DATA = Path(__file__).resolve().parents[1] / "data"
+RUNTIME = Path(tempfile.mkdtemp())  # tests never touch the real data/runtime folder
 CUSTOMER = {"id": "rahim", "name": "Rahim Uddin", "area": "Mirpur"}
+
+
+class BrokenReferenceRepo(FileRepo):
+    """Packs and GP Centres cannot be read, as when the data store is down."""
+
+    async def list_packs(self):
+        raise DataUnavailable("ExpiredTokenException")
 
 
 class FakeHub:
@@ -39,12 +50,12 @@ class FakeBedrock:
         return self.reply
 
 
-def make(bedrock: FakeBedrock):
+def make(bedrock: FakeBedrock, repo_class=FileRepo):
     # _env_file=None: never read config/.env in tests
     settings = Settings(_env_file=None, bedrock_inference_profile_arn_fast="arn:aws:bedrock:ap-south-1:1:test/x")
     hub = FakeHub()
     kb = KnowledgeBase(DATA / "knowledge" / "articles")
-    return LiveAssist(settings, bedrock, kb, hub), hub
+    return LiveAssist(settings, bedrock, kb, hub, repo_class(settings, runtime_dir=RUNTIME)), hub
 
 
 def session_with(*lines: tuple[str, str]) -> CallSession:
@@ -193,3 +204,29 @@ def test_lookups_run_one_at_a_time_and_finished_ones_are_kept():
     assert [a["turn_id"] for a in session.answers] == [1, 3]
     assert [d["turn_id"] for d in hub.of("answer")] == [1, 3]
     assert len(bedrock.prompts) == 2
+
+
+def test_pack_catalog_and_gp_centres_reach_the_model():
+    bedrock = FakeBedrock({"needs_lookup": False})
+    assist, _ = make(bedrock)
+    session = session_with(("customer", "Amar SIM hariye gese, ar boro pack ki ache?"))
+    session.current_location = {"area": "Gulshan", "status": "no_notice"}
+
+    asyncio.run(assist.run_now(session))
+
+    prompt = bedrock.prompts[0]
+    assert "30 GB + 300 minutes: Tk 598, 30 days" in prompt  # from the packs table
+    assert "activation code: none published" in prompt  # codes are never invented
+    assert "Grameenphone Center Mirpur-1 (Mirpur)" in prompt  # the customer's registered area
+    assert "Grameenphone Experience, Gulshan (Gulshan)" in prompt  # where the customer is now
+
+
+def test_the_lookup_still_runs_when_packs_and_centres_cannot_be_read():
+    bedrock = FakeBedrock({"needs_lookup": False})
+    assist, _ = make(bedrock, BrokenReferenceRepo)
+    session = session_with(("customer", "Amar boro pack ki ache?"))
+
+    entry = asyncio.run(assist.run_now(session))
+
+    assert entry["needs_lookup"] is False and len(bedrock.prompts) == 1
+    assert "(none)" in bedrock.prompts[0]

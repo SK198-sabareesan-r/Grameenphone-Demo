@@ -7,14 +7,15 @@ from copilot.services.analyzer import ANGRY_TIP
 from copilot.services.nba import NbaCatalog
 from copilot.services.pipeline import ensure_pipeline
 from copilot.services.sessions import CallSession
-from tests.conftest import FAST_ARN, settle
+from copilot.repo import build_repo
+from tests.conftest import FAST_ARN, make_settings, settle
 
 RULES = BASE_DIR / "data" / "mock" / "nba_rules.json"
 
 
 @pytest.fixture
-def catalog() -> NbaCatalog:
-    return NbaCatalog(RULES)
+def catalog(runtime_dir) -> NbaCatalog:
+    return NbaCatalog(RULES, build_repo(make_settings(runtime_dir)))
 
 
 @pytest.fixture
@@ -30,20 +31,22 @@ def test_llm_view_exposes_only_id_and_when(catalog):
     assert all(set(r) == {"id", "when"} for r in view)
 
 
-def test_show_adds_a_known_suggestion_once(catalog, session):
-    assert catalog.show(session, "nba-bigger-pack") is True
-    assert catalog.show(session, "nba-bigger-pack") is False
-    assert catalog.show(session, "made-up-id") is False
-    assert catalog.show(session, None) is False
-    assert session.suggestions["nba-bigger-pack"] == {
+async def test_show_adds_a_known_suggestion_once(catalog, session):
+    assert await catalog.show(session, "nba-bigger-pack") is True
+    assert await catalog.show(session, "nba-bigger-pack") is False
+    assert await catalog.show(session, "made-up-id") is False
+    assert await catalog.show(session, None) is False
+    shown = dict(session.suggestions["nba-bigger-pack"])
+    assert shown.pop("pack")["name"]  # the pack details come from the data store (seeded packs)
+    assert shown == {
         "id": "nba-bigger-pack", "title": "Offer the bigger 30-day pack (sample)",
         "text": "The customer runs out of data before the pack ends every month. Offer the bigger 30-day pack.",
         "source": "bundle-packs", "used": False,
     }
 
 
-def test_speech_marks_a_shown_suggestion_used(catalog, session):
-    catalog.show(session, "nba-bigger-pack")
+async def test_speech_marks_a_shown_suggestion_used(catalog, session):
+    await catalog.show(session, "nba-bigger-pack")
     assert catalog.mark_used_by_speech(session, "Apni boro pack ta nite paren.") is True
     assert session.suggestions["nba-bigger-pack"]["used"] is True
     assert catalog.mark_used_by_speech(session, "boro pack") is False  # already used
@@ -54,8 +57,8 @@ def test_speech_does_not_mark_suggestions_that_were_never_shown(catalog, session
     assert session.suggestions == {}
 
 
-def test_manual_mark_used(catalog, session):
-    catalog.show(session, "nba-roaming-pack")
+async def test_manual_mark_used(catalog, session):
+    await catalog.show(session, "nba-roaming-pack")
     assert catalog.mark_used(session, "nba-roaming-pack") is True
     assert catalog.mark_used(session, "nba-roaming-pack") is False
     assert catalog.mark_used(session, "nba-sim-block") is False

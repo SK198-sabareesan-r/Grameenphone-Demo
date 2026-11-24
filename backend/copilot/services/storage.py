@@ -1,47 +1,47 @@
-"""Call records: local JSON files, optionally mirrored to Amazon S3."""
+"""Call records: saved through the data store (DynamoDB), and mirrored to Amazon S3 when a bucket is set."""
 
 import asyncio
 import json
 import logging
 
 from config.settings import Settings
+from copilot.repo.base import DataUnavailable, Repo
 from copilot.utils.aws import aws_session
 
 log = logging.getLogger(__name__)
 
 
 class CallStorage:
-    def __init__(self, settings: Settings) -> None:
-        self._dir = settings.runtime_dir / "calls"
-        self._dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, settings: Settings, repo: Repo) -> None:
+        self._settings = settings
+        self._repo = repo
         self._bucket = settings.s3_bucket
         self._prefix = settings.s3_prefix.strip("/")
-        self._settings = settings
 
     async def save(self, record: dict) -> None:
-        body = json.dumps(record, ensure_ascii=False, indent=2)
-        (self._dir / f"{record['call_sid']}.json").write_text(body, encoding="utf-8")
+        """Save one call. A failure is logged and never stops the summary from reaching the agent."""
+        try:
+            await self._repo.save_call(record)
+        except DataUnavailable as error:
+            log.error("Could not save call %s: %s", record.get("call_id"), error)
         if self._bucket:
             try:
-                await asyncio.to_thread(self._upload, record["call_sid"], body)
+                await asyncio.to_thread(self._upload, record)
             except Exception:
-                log.exception("S3 upload failed for call %s", record["call_sid"])
+                log.exception("S3 upload failed for call %s", record.get("call_id"))
 
-    def _upload(self, call_sid: str, body: str) -> None:
-        client = aws_session(self._settings).client("s3")
-        client.put_object(
+    def _upload(self, record: dict) -> None:
+        body = json.dumps(record, ensure_ascii=False, indent=2, default=str)
+        aws_session(self._settings).client("s3").put_object(
             Bucket=self._bucket,
-            Key=f"{self._prefix}/{call_sid}.json",
+            Key=f"{self._prefix}/{record['call_id']}.json",
             Body=body.encode("utf-8"),
             ContentType="application/json",
         )
 
-    def all_records(self) -> list[dict]:
-        records = []
-        for path in self._dir.glob("*.json"):
-            records.append(json.loads(path.read_text(encoding="utf-8")))
-        return records
-
-    def clear(self) -> None:
-        for path in self._dir.glob("*.json"):
-            path.unlink()
+    async def all_records(self) -> list[dict]:
+        try:
+            return await self._repo.list_calls()
+        except DataUnavailable as error:
+            log.error("Could not read saved calls: %s", error)
+            return []

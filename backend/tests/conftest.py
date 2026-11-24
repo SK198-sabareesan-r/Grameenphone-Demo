@@ -100,6 +100,7 @@ def make_settings(runtime_dir: Path, **overrides) -> Settings:
         "demo_default_customer_id": "rahim",
         "demo_phone_map": "",
         "ticket_start_number": 10234,
+        "data_backend": "files",  # never reach DynamoDB from a test
         "copilot_runtime_dir": str(runtime_dir),
         "copilot_conversations_dir": str(runtime_dir.parent / "conversations"),
         "internal_api_token": INTERNAL_TOKEN,

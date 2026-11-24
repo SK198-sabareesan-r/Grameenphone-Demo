@@ -15,7 +15,7 @@ async def ticket_categories() -> dict:
 
 @router.get("")
 async def list_tickets(request: Request) -> dict:
-    return {"tickets": get_container(request).tickets.all()}
+    return {"tickets": await get_container(request).tickets.all()}
 
 
 @router.post("")
@@ -23,7 +23,7 @@ async def create_ticket(body: TicketRequest, request: Request) -> dict:
     c = get_container(request)
     if body.category not in TICKET_CATEGORIES:
         raise HTTPException(status_code=422, detail="Unknown ticket category")
-    ticket = c.tickets.create(body.model_dump())
+    ticket = await c.tickets.create(body.model_dump())
     session = c.registry.get(body.call_sid) or c.registry.current
     if session:
         session.ticket = ticket

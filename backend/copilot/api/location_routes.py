@@ -12,7 +12,9 @@ router = APIRouter(prefix="/api", tags=["location"])
 @router.get("/locations")
 async def list_locations(request: Request) -> dict:
     """Areas the agent can pick from."""
-    return {"locations": get_container(request).areas.names()}
+    areas = get_container(request).areas
+    await areas.ensure_loaded()
+    return {"locations": areas.names()}
 
 
 @router.get("/location")

@@ -4,8 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from config.settings import Settings
-from copilot.services.areas import NetworkAreas
-from scripts.seed_dynamodb import TABLES, build_seed
+from copilot.repo.seed import TABLES, build_seed
 
 NOW = datetime(2026, 11, 24, 10, 0, tzinfo=timezone.utc)
 
@@ -79,11 +78,13 @@ def test_every_customer_area_and_gp_centre_area_is_a_known_network_area():
     assert {g["area"] for g in data["gp-centres"]} <= known
 
 
-def test_seeded_areas_match_what_the_app_reads_from_the_json_file():
+def test_seeded_areas_match_the_json_file():
+    import json
     from pathlib import Path
 
-    areas = NetworkAreas(Path(__file__).resolve().parents[1] / "data" / "mock" / "network_areas.json")
-    assert sorted(a["area"] for a in seed()["network-areas"]) == sorted(areas.names())
+    path = Path(__file__).resolve().parents[1] / "data" / "mock" / "network_areas.json"
+    names = json.loads(path.read_text(encoding="utf-8"))["areas"]
+    assert sorted(a["area"] for a in seed()["network-areas"]) == sorted(names)
     gazipur = next(a for a in seed()["network-areas"] if a["area"] == "Gazipur")
     assert gazipur["notice"]["status"] == "outage"
     assert next(a for a in seed()["network-areas"] if a["area"] == "Dhanmondi")["notice"] is None

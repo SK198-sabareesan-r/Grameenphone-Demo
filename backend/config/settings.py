@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     s3_prefix: str = "copilot/calls"
     s3_knowledge_prefix: str = "knowledge/pdf"
     dynamodb_table_prefix: str = "gp-copilot-"
+    dynamodb_timeout_s: float = 4.0
+
+    # Where the Copilot's data lives
+    data_backend: str = "dynamodb"  # dynamodb | files
+    data_fallback_to_files: bool = True
+    data_retry_after_s: float = 30.0
     bedrock_inference_profile_arn_fast: str = ""
     bedrock_inference_profile_arn_summary: str = ""
 

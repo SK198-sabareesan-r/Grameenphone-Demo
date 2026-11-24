@@ -20,11 +20,24 @@ from datetime import timezone
 from copilot.container import Container
 from copilot.models.internal_events import CallEventIn, TranscriptEventIn
 from copilot.services import conversation_store as store
+from copilot.services.customers import normalize_number
 from copilot.services.pipeline import CallPipeline
 from copilot.services.conversation_store import now_iso
 
 log = logging.getLogger(__name__)
 MAX_INTENT_CHARS = 500
+
+
+async def _customer_for(c: Container, caller_number: str | None) -> dict | None:
+    """The customer whose registered mobile number is the caller ID, or None. A data-store outage or an unknown number
+    must never stop a call's events from being recorded."""
+    if not caller_number:
+        return None
+    try:
+        return await c.repo.get_customer(normalize_number(caller_number))
+    except Exception:
+        log.warning("voice_customer_lookup_failed")
+        return None
 
 
 def mask_number(value: str | None) -> str | None:
@@ -133,7 +146,7 @@ async def handle_call_event(c: Container, ev: CallEventIn) -> str:
     if ev.type == "call_started":
         # The caller ID only SUGGESTS who is calling: the panel still waits for the agent to confirm the mobile number
         # (identity_routes). The stored files get the matching customer id so all five files can be joined.
-        customer = c.customers.find_by_number(caller_number) if caller_number else None
+        customer = await _customer_for(c, caller_number)
         if customer:
             data["customer_name"] = customer.get("name")
         data["caller_ref"] = mask_number(caller_number)

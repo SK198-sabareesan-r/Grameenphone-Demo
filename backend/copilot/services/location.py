@@ -47,10 +47,11 @@ class LocationService:
 
     async def set_current(self, session: CallSession, area_text: str) -> dict:
         """Check the network status at the location the customer gave the agent."""
+        await self._areas.ensure_loaded()
         name = self._areas.resolve(area_text)
         if name is None:
             raise UnknownArea(area_text)
-        status = self._areas.status(name)
+        status = await self._areas.status(name)
         session.set_location(status)
         await self._hub.broadcast("location", {"current_location": status})
         return status

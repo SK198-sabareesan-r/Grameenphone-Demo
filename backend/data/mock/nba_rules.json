@@ -13,6 +13,7 @@
     "text": "The customer runs out of data before the pack ends every month. Offer the bigger 30-day pack.",
     "when": "Customer's usage pattern shows the data runs out early, and the customer's main problem is being handled.",
     "source": "bundle-packs",
+    "pack_id": "bundle-30gb-300min-30d",
     "used_keywords": ["boro pack", "bigger pack", "বড় প্যাক", "বড় পেক", "বড় প্যাকটা"]
   },
   {
@@ -29,6 +30,7 @@
     "text": "Explain how to activate roaming in MyGP and suggest a roaming pack that fits the trip.",
     "when": "Customer mentions travelling abroad.",
     "source": "roaming-basics",
+    "pack_id": "roaming-travel-10gb-10d",
     "used_keywords": ["roaming pack", "রোমিং প্যাক"]
   },
   {
@@ -37,6 +39,7 @@
     "text": "Verify identity and block the SIM first. Then explain the documents needed for replacement.",
     "when": "Customer says the SIM is lost or stolen.",
     "source": "sim-replacement",
+    "show_centres": true,
     "used_keywords": ["block", "ব্লক"]
   }
 ]

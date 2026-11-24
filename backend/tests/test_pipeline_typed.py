@@ -89,14 +89,11 @@ async def test_a_new_pipeline_replaces_the_call_on_screen(container, events):
     assert container.registry.get("call-1") is first.session  # older calls stay reachable by id
 
 
-async def test_a_customer_is_found_only_by_mobile_number_and_the_phone_map_adds_team_phones(runtime_dir, fake_bedrock):
-    from copilot.container import build_container
-    from tests.conftest import make_settings
+async def test_a_customer_is_found_only_by_mobile_number_in_the_repository(container):
+    from copilot.services.customers import normalize_number
 
-    c = build_container(make_settings(runtime_dir, demo_phone_map="+8801700000001:nusrat"), bedrock=fake_bedrock)
-    assert c.customers.find_by_number("+880 1200-000001")["id"] == "rahim"
-    assert c.customers.find_by_number("+8801700000001")["id"] == "nusrat"  # a verified team phone
-    assert c.customers.find_by_number("+8801999999999") is None  # no default customer any more
+    assert (await container.repo.get_customer(normalize_number("+880 1200-000001")))["id"] == "rahim"
+    assert await container.repo.get_customer(normalize_number("+8801999999999")) is None  # no default customer
 
 
 def test_typed_line_api_validates_speaker_and_length(client):

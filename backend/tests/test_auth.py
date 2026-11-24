@@ -41,7 +41,7 @@ def _assert_ws_rejected(client, url: str) -> None:
 
 
 def test_health_and_login_are_public(client):
-    assert client.get("/api/health", headers=NO_AUTH).json() == {"status": "ok"}
+    assert client.get("/api/health", headers=NO_AUTH).json() == {"status": "ok", "data": {"backend": "files", "fallback_active": False, "reason": None}}
     response = client.post("/api/auth/login", headers=NO_AUTH,
                            json={"username": AGENT["username"], "password": AGENT["password"]})
     assert response.status_code == 200

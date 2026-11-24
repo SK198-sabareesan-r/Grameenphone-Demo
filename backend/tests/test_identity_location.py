@@ -1,19 +1,22 @@
-"""Tests for mobile-number identification and the current-location network check. No network, no AWS."""
+"""Tests for mobile-number identification, the current-location network check and tickets. No network, no AWS."""
 
 import asyncio
+import tempfile
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from config.settings import Settings
+from copilot.repo.files import FileRepo
 from copilot.services.areas import NetworkAreas
-from copilot.services.customers import CustomerDirectory, is_plausible_number, normalize_number
+from copilot.services.customers import is_plausible_number, normalize_number
 from copilot.services.identity import IdentityService, UnknownMobileNumber
 from copilot.services.location import LocationService, UnknownArea
 from copilot.services.sessions import CallSession
 
 MOCK = Path(__file__).resolve().parents[1] / "data" / "mock"
+RUNTIME = Path(tempfile.mkdtemp())  # tests never touch the real data/runtime folder
 RAHIM = "01200000001"
 
 
@@ -30,12 +33,13 @@ class FakeHub:
 
 def build():
     settings = Settings(_env_file=None, demo_phone_map="+8801711111111:rahim")  # never read config/.env
-    customers = CustomerDirectory(settings)
-    areas = NetworkAreas(MOCK / "network_areas.json")
+    repo = FileRepo(settings, runtime_dir=RUNTIME)
+    areas = NetworkAreas(repo)
+    asyncio.run(areas.load())
     hub = FakeHub()
-    identity = IdentityService(customers, areas, hub)
+    identity = IdentityService(repo, areas, hub)
     location = LocationService(MOCK / "network_keywords.json", areas, hub)
-    return customers, areas, hub, identity, location
+    return repo, areas, hub, identity, location
 
 
 def new_session() -> CallSession:
@@ -51,10 +55,10 @@ def test_numbers_are_compared_in_one_format():
 
 
 def test_customer_is_found_by_number_and_by_team_phone():
-    customers, *_ = build()
-    assert customers.find_by_number("+88 01200 000001")["id"] == "rahim"
-    assert customers.find_by_number("01711111111")["id"] == "rahim"  # from DEMO_PHONE_MAP
-    assert customers.find_by_number("01299999999") is None
+    repo, *_ = build()
+    assert asyncio.run(repo.get_customer(RAHIM))["id"] == "rahim"
+    assert asyncio.run(repo.get_customer("01711111111"))["id"] == "rahim"  # from DEMO_PHONE_MAP
+    assert asyncio.run(repo.get_customer("01299999999")) is None
 
 
 # ---- the card appears only after the agent confirms the number ----
@@ -66,10 +70,20 @@ def test_card_is_hidden_until_the_number_is_confirmed():
 
     card = asyncio.run(identity.confirm(session, "+8801200000001"))
 
-    assert card["customer"]["id"] == "rahim"
+    assert card["customer"]["id"] == "rahim" and card["customer"]["msisdn"] == RAHIM
+    assert "mobile_number" not in card["customer"] and "source" not in card["customer"]  # storage-only fields
     assert card["registered_status"]["area"] == "Mirpur"
     assert card["registered_status"]["status"] == "maintenance"  # location status comes with the card
     assert hub.of("card") == [card]
+
+
+def test_the_card_lists_open_tickets_from_the_tickets_table_oldest_first():
+    _, _, _, identity, _ = build()
+    card = asyncio.run(identity.confirm(new_session(), "01200000003"))  # Karim
+    tickets = card["customer"]["open_tickets"]
+    assert [t["id"] for t in tickets] == ["TKT-10101", "TKT-10144", "TKT-10190"]
+    assert [t["age"] for t in tickets] == ["9 days", "5 days", "2 days"]
+    assert all(t["topic"] == "Slow internet" for t in tickets)
 
 
 def test_unknown_number_loads_nothing():
@@ -100,13 +114,21 @@ def test_area_names_resolve_in_english_bangla_and_inside_a_sentence():
     assert areas.resolve("আমি এখন মিরপুরে আছি") == "Mirpur"  # Bangla suffix
     assert areas.resolve("ctg") == "Chattogram"
     assert areas.resolve("Paris") is None and areas.resolve("") is None
+    assert "Gazipur" in areas.names() and len(areas.names()) == 7
 
 
 def test_area_without_a_notice_does_not_claim_the_network_is_fine():
     _, areas, *_ = build()
-    status = areas.status("Dhanmondi")
+    status = asyncio.run(areas.status("Dhanmondi"))
     assert status["status"] == "no_notice" and "No network notice" in status["message"]
-    assert areas.status("Gazipur")["status"] == "outage"
+    assert asyncio.run(areas.status("Gazipur"))["status"] == "outage"
+
+
+def test_a_status_is_read_fresh_so_an_edited_notice_shows_on_the_next_check():
+    repo, areas, *_ = build()
+    assert asyncio.run(areas.status("Dhanmondi"))["status"] == "no_notice"
+    repo._areas["Dhanmondi"]["notice"] = {"status": "outage", "message": "Fibre cut", "until": "9 PM"}
+    assert asyncio.run(areas.status("Dhanmondi"))["status"] == "outage"
 
 
 # ---- location prompt and filter ----
@@ -194,6 +216,39 @@ def test_api_flow_number_then_card_then_current_location(client):
     client.delete("/api/identity")
     assert client.get("/api/calls/current").json()["call"]["card"] is None
     assert "Gazipur" in client.get("/api/locations").json()["locations"]
+
+
+def test_health_says_where_the_data_comes_from(client):
+    data = client.get("/api/health").json()["data"]
+    assert data == {"backend": "files", "fallback_active": False, "reason": None}
+
+
+def test_tickets_are_numbered_saved_shown_on_the_card_and_cleared_by_reset(runtime_dir, users_file, fake_bedrock):
+    from tests.conftest import make_settings, open_client
+
+    with open_client(make_settings(runtime_dir, demo_controls_enabled=True), fake_bedrock) as client:  # reset is a demo control
+        _tickets_flow(client)
+
+
+def _tickets_flow(client):
+    client.post("/api/transcript", json={"speaker": "customer", "text": "Amar net slow"})
+    draft = {"customer_id": "karim", "category": "Network", "subject": "Slow internet again", "problem": "Still slow"}
+
+    first = client.post("/api/tickets", json=draft).json()
+    second = client.post("/api/tickets", json=draft).json()
+    assert (first["ticket_id"], second["ticket_id"]) == ("TKT-10234", "TKT-10235")
+    assert first["status"] == "open" and first["source"] == "app" and first["customer_id"] == "karim"
+
+    card = client.post("/api/identity", json={"mobile_number": "01200000003"}).json()["card"]
+    assert [t["id"] for t in card["customer"]["open_tickets"]][-2:] == ["TKT-10234", "TKT-10235"]
+    assert len(client.get("/api/tickets").json()["tickets"]) == 5  # 3 seeded + 2 new
+
+    nobody = client.post("/api/tickets", json={"category": "Other", "subject": "No customer"}).json()
+    assert nobody["customer_id"] == "unidentified" and nobody["ticket_id"] == "TKT-10236"
+
+    client.post("/api/data/reset")
+    remaining = client.get("/api/tickets").json()["tickets"]
+    assert [t["ticket_id"] for t in remaining] == ["TKT-10101", "TKT-10144", "TKT-10190"]  # seeded ones stay
 
 
 def test_removed_endpoints_stay_removed(client):
