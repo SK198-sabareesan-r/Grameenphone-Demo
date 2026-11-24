@@ -13,6 +13,7 @@ export const API = {
   compliance: "/api/compliance",
   suggestions: "/api/suggestions",
   useSuggestion: (id) => `/api/suggestions/${encodeURIComponent(id)}/use`,
+  answers: "/api/answers",
   summary: "/api/summary",
   ticketCategories: "/api/tickets/categories",
   tickets: "/api/tickets",

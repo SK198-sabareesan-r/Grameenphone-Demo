@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     sarvam_tts_speaker_agent: str = ""
     sarvam_tts_speaker_customer: str = ""
 
+    # Automatic lookup for each customer sentence
+    assist_enabled: bool = True
+    assist_timeout_s: float = 8.0
+    assist_max_articles: int = 4
+
     # Demo behaviour
     demo_default_customer_id: str = "rahim"
     demo_phone_map: str = ""

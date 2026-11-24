@@ -8,7 +8,7 @@ from tests.conftest import FAST_ARN
 
 SESSION_VIEW_KEYS = {
     "call_sid", "ended", "turns", "card", "mood", "compliance",
-    "suggestions", "summary", "ticket", "recording_url",
+    "suggestions", "answers", "summary", "ticket", "recording_url",
 }
 FINAL_TURN_KEYS = {"id", "speaker", "text", "ts", "kind"}
 REDUCER = BASE_DIR.parent / "frontend" / "src" / "state" / "callReducer.js"
@@ -54,9 +54,14 @@ def test_panel_stream_sends_no_snapshot_when_there_is_no_call_then_live_events(c
         assert set(card["data"]) == {"customer", "notice"}
         assert card["data"]["customer"]["id"] == "rahim"
 
-        mood = ws.receive_json()
+        def next_event():  # the live lookup (answer.*) runs alongside analysis; order is not fixed
+            while (msg := ws.receive_json())["type"].startswith("answer"):
+                pass
+            return msg
+
+        mood = next_event()
         assert mood == {"type": "mood", "data": {"customer": "frustrated", "agent": "neutral", "tip": "Apologise first."}}
-        suggestions = ws.receive_json()
+        suggestions = next_event()
         assert suggestions["type"] == "suggestions"
         assert [set(s) for s in suggestions["data"]] == [{"id", "title", "text", "source", "used"}]
 

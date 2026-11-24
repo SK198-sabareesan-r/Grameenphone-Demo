@@ -1,0 +1,178 @@
+"""Automatic lookup for each customer sentence.
+
+One Bedrock call per lookup. The knowledge articles that match the sentence, the customer card and the
+network notice are gathered first and given to the model together. The model decides whether the sentence
+needs a lookup at all (greetings and small talk do not) and writes a short suggestion for the agent.
+If Bedrock fails, the matching articles are shown on their own, so the agent still gets something.
+"""
+
+import asyncio
+import logging
+import re
+
+from config.settings import Settings
+from copilot.services.bedrock import BedrockClient
+from copilot.services.hub import PanelHub
+from copilot.services.knowledge import Article, KnowledgeBase
+from copilot.services.sessions import CallSession, Turn
+from copilot.utils.helpers import load_json, read_text, render_prompt
+
+log = logging.getLogger(__name__)
+
+SYSTEM = "You help a contact-centre agent during a live call and reply with JSON only."
+NOT_FOUND = "Not found in the approved knowledge or the customer's data. Check with a supervisor."
+CONFIDENCE_LEVELS = {"high", "medium", "low"}
+MAX_ANSWER_CHARS = 600
+SHORT_SENTENCE_WORDS = 5  # shorter sentences are searched together with the customer's previous one
+_PUNCTUATION = re.compile(r"[^\w\s]", re.UNICODE)
+
+
+def _words(text: str) -> list[str]:
+    return _PUNCTUATION.sub(" ", text.lower()).split()
+
+
+class LiveAssist:
+    def __init__(
+        self, settings: Settings, bedrock: BedrockClient, kb: KnowledgeBase, hub: PanelHub
+    ) -> None:
+        self._enabled = settings.assist_enabled
+        self._model = settings.bedrock_inference_profile_arn_fast
+        self._timeout_s = settings.assist_timeout_s
+        self._limit = settings.assist_max_articles
+        self._bedrock, self._kb, self._hub = bedrock, kb, hub
+        self._template = read_text(settings.data_dir / "prompts" / "live_assist.md")
+        smalltalk = load_json(settings.data_dir / "mock" / "smalltalk.json")
+        self._max_words = int(smalltalk["max_words"])
+        self._phrases = {" ".join(_words(p)) for p in smalltalk["phrases"]}
+        self._known_words = {w for p in self._phrases for w in p.split()}
+        self._running: set[str] = set()
+        self._pending: dict[str, int] = {}  # call id -> newest customer turn waiting its turn
+
+    # ---- deciding whether to look anything up ----
+
+    def is_small_talk(self, text: str) -> bool:
+        words = _words(text)
+        if not words:
+            return True
+        if " ".join(words) in self._phrases:
+            return True
+        return len(words) <= self._max_words and all(w in self._known_words for w in words)
+
+    def schedule(self, session: CallSession, turn: Turn) -> None:
+        """Look up the customer's sentence in the background.
+
+        One lookup runs at a time per call. Sentences that arrive meanwhile wait, and only the newest
+        waiting one is kept, because the model also sees the recent transcript.
+        """
+        if not self._enabled or turn.speaker != "customer" or self.is_small_talk(turn.text):
+            return
+        sid = session.call_sid
+        if sid in self._running:
+            self._pending[sid] = turn.id
+            return
+        self._running.add(sid)
+        asyncio.create_task(self._loop(session, turn))
+
+    async def run_now(self, session: CallSession) -> dict | None:
+        """Look up the customer's latest sentence on request, even if it looks like small talk."""
+        turn = next((t for t in reversed(session.turns) if t.speaker == "customer"), None)
+        if turn is None:
+            return None
+        return await self._handle(session, turn)
+
+    async def _loop(self, session: CallSession, turn: Turn | None) -> None:
+        sid = session.call_sid
+        try:
+            while turn is not None:
+                try:
+                    await self._handle(session, turn)
+                except Exception:
+                    log.exception("Live lookup failed for call %s", sid)
+                waiting = self._pending.pop(sid, None)
+                turn = next((t for t in session.turns if t.id == waiting), None) if waiting else None
+        finally:
+            self._running.discard(sid)
+
+    # ---- one lookup ----
+
+    async def _handle(self, session: CallSession, turn: Turn) -> dict:
+        articles = self._kb.search(self._query(session, turn), self._limit)
+        await self._hub.broadcast("answer.pending", {"turn_id": turn.id, "question": turn.text})
+        entry = await self._generate(session, turn, articles)
+        session.set_answer(entry)
+        await self._hub.broadcast("answer", entry)
+        return entry
+
+    def _query(self, session: CallSession, turn: Turn) -> str:
+        if len(turn.text.split()) >= SHORT_SENTENCE_WORDS:
+            return turn.text
+        previous = next(
+            (t.text for t in reversed(session.turns) if t.speaker == "customer" and t.id < turn.id), ""
+        )
+        return f"{previous} {turn.text}".strip()
+
+    async def _generate(self, session: CallSession, turn: Turn, articles: list[Article]) -> dict:
+        prompt = render_prompt(
+            self._template,
+            identity_verified="yes" if session.compliance.get("verify_identity") == "green" else "no",
+            customer=session.customer,
+            notice=session.notice,
+            articles=self._articles_block(articles),
+            transcript=session.transcript_text(last=8),
+            question=turn.text,
+        )
+        try:
+            raw = await asyncio.wait_for(
+                self._bedrock.complete_json(self._model, SYSTEM, prompt, max_tokens=500),
+                self._timeout_s,
+            )
+            return self._clean(raw, turn, articles)
+        except Exception:
+            log.exception("Bedrock lookup failed, showing the matching articles only")
+            return self._search_only(turn, articles)
+
+    @staticmethod
+    def _articles_block(articles: list[Article]) -> str:
+        if not articles:
+            return "(no matching article)"
+        return "\n\n".join(f"[{a.id}] {a.title} (type: {a.type})\n{a.body}" for a in articles)
+
+    # ---- shaping the result ----
+
+    def _clean(self, raw: dict, turn: Turn, articles: list[Article]) -> dict:
+        if raw.get("needs_lookup") is not True:
+            return {"turn_id": turn.id, "question": turn.text, "needs_lookup": False}
+        answer = str(raw.get("answer") or "").strip()[:MAX_ANSWER_CHARS]
+        clarify = raw.get("clarifying_question")
+        clarify = clarify.strip() if isinstance(clarify, str) and clarify.strip() else None
+        allowed = {a.id: a for a in articles}
+        listed = raw.get("sources") if isinstance(raw.get("sources"), list) else []
+        ids = [i for i in dict.fromkeys(listed) if isinstance(i, str) and i in allowed]
+        confidence = raw.get("confidence")
+        return {
+            "turn_id": turn.id,
+            "question": turn.text,
+            "needs_lookup": True,
+            "answer": answer or (None if clarify else NOT_FOUND),
+            "sources": [allowed[i].public_view() for i in ids],
+            "used_customer_data": raw.get("used_customer_data") is True,
+            "confidence": confidence if confidence in CONFIDENCE_LEVELS else "low",
+            "clarifying_question": clarify,
+            "mode": "ai",
+        }
+
+    @staticmethod
+    def _search_only(turn: Turn, articles: list[Article]) -> dict:
+        if not articles:
+            return {"turn_id": turn.id, "question": turn.text, "needs_lookup": False}
+        return {
+            "turn_id": turn.id,
+            "question": turn.text,
+            "needs_lookup": True,
+            "answer": None,
+            "sources": [a.public_view() for a in articles],
+            "used_customer_data": False,
+            "confidence": "low",
+            "clarifying_question": None,
+            "mode": "search_only",
+        }

@@ -102,6 +102,8 @@ All routes need a signed-in agent except where marked public.
 | Transcript | GET | `/api/transcript` | Turns so far |
 | Transcript | POST | `/api/transcript` | Add one typed line (same steps as live speech) |
 | Analysis | POST | `/api/analyze` | Run mood and next-best-action analysis now |
+| Answers | GET | `/api/answers` | Automatic lookups made so far for the customer's sentences |
+| Answers | POST | `/api/answers` | Look up the customer's latest sentence now |
 | Analysis | GET | `/api/mood` | Current mood and history |
 | Compliance | GET | `/api/compliance` | Current reminders |
 | Compliance | GET | `/api/compliance/rules` | Rule list |

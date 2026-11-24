@@ -66,6 +66,7 @@ export const api = {
   addTranscriptLine: (speaker, text) =>
     request(API.transcript, { method: "POST", body: { speaker, text } }),
   analyze: () => request(API.analyze, { method: "POST" }),
+  runAnswer: () => request(API.answers, { method: "POST" }),
   generateSummary: () => request(API.summary, { method: "POST" }),
   ask: (question) => request(API.ask, { method: "POST", body: { question } }),
   useSuggestion: (id) => request(API.useSuggestion(id), { method: "POST" }),

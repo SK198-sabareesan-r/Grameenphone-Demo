@@ -13,7 +13,7 @@ from copilot.models.participants import (
     SUGGESTION_SPEAKERS,
     normalize_speaker,
 )
-from copilot.services.sessions import CallSession
+from copilot.services.sessions import CallSession, Turn
 
 log = logging.getLogger(__name__)
 SOURCES = ("typed",)  # the voice-agent source is added with the voice integration (M3)
@@ -29,6 +29,7 @@ def session_view(c: Container, session: CallSession) -> dict:
         "mood": session.mood,
         "compliance": c.compliance.view(session.compliance),
         "suggestions": list(session.suggestions.values()),
+        "answers": session.answers,
         "summary": session.summary,
         "ticket": session.ticket,
         "recording_url": session.recording_url,
@@ -86,12 +87,13 @@ class CallPipeline:
             return
         turn = session.add_turn(role, text)
         await c.hub.broadcast("transcript", {**turn.__dict__, "kind": "final"})
-        await self._after_final_turn(session, role, text)
+        await self._after_final_turn(session, turn)
 
-    async def _after_final_turn(self, session: CallSession, role: str, text: str) -> None:
+    async def _after_final_turn(self, session: CallSession, turn: Turn) -> None:
         """Per-role effects. AI-agent turns are stored and shown, but never change compliance or
         suggestions and do not trigger analysis on their own (they are context for the next one)."""
         c = self._c
+        role, text = turn.speaker, turn.text
         if role == CUSTOMER and not session.card_visible:
             session.card_visible = True
             await c.hub.broadcast("card", session.card())
@@ -101,6 +103,7 @@ class CallPipeline:
             await c.hub.broadcast("suggestions", list(session.suggestions.values()))
         if role in ANALYSIS_TRIGGERS:
             c.analyzer.schedule(session)
+        c.assist.schedule(session, turn)  # customer sentences only; the service decides what to skip
 
     # ---- End of call ----
 
