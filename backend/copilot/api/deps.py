@@ -1,5 +1,7 @@
 """Shared FastAPI dependencies."""
 
+import hmac
+import logging
 from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, Request
@@ -8,6 +10,7 @@ from copilot.container import Container
 from copilot.services.auth import ROLE_RANK, User
 from copilot.services.sessions import CallSession
 
+log = logging.getLogger(__name__)
 BEARER = "bearer "
 
 
@@ -54,3 +57,21 @@ def require_demo_controls(request: Request, user: User = Depends(require_user)) 
     if not get_container(request).settings.demo_controls_enabled:
         raise HTTPException(status_code=403, detail="Demo controls are disabled")
     return user
+
+
+INTERNAL_TOKEN_HEADER = "X-Internal-Token"
+
+
+def require_internal_token(request: Request) -> None:
+    """Service-to-service calls from the voice agent: `X-Internal-Token` must equal INTERNAL_API_TOKEN.
+
+    Same header and variable name the voice agent already uses for its own control routes. Fails closed
+    (503) while the token is not configured. The token is never logged.
+    """
+    expected = get_container(request).settings.internal_api_token.get_secret_value()
+    if not expected:
+        raise HTTPException(status_code=503, detail="INTERNAL_API_TOKEN is not configured")
+    supplied = request.headers.get(INTERNAL_TOKEN_HEADER, "")
+    if not hmac.compare_digest(expected.encode(), supplied.encode("utf-8", "replace")):
+        log.warning("internal_auth_failed path=%s", request.url.path)
+        raise HTTPException(status_code=401, detail="Missing or invalid internal token")

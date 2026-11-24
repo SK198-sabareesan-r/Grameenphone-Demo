@@ -48,7 +48,7 @@ def test_health_and_login_are_public(client):
 
 
 def test_every_other_api_route_rejects_anonymous_requests(client):
-    routes = [r for r in _api_routes(client) if r not in PUBLIC]
+    routes = [r for r in _api_routes(client) if r not in PUBLIC and not r[1].startswith("/api/v1/internal/")]  # internal routes: token header, see test_internal_api.py
     assert len(routes) >= 20  # guard against the route listing silently shrinking
     for method, path in routes:
         response = client.request(method.upper(), _concrete(path), headers=NO_AUTH, json={})

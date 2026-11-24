@@ -23,6 +23,7 @@ FAST_ARN = "arn:aws:bedrock:ap-south-1:000000000000:inference-profile/test-fast"
 SUMMARY_ARN = "arn:aws:bedrock:ap-south-1:000000000000:inference-profile/test-summary"
 REAL_RUNTIME_DIR = BASE_DIR / "data" / "runtime"
 SESSION_SECRET = "test-session-secret-not-for-production"
+INTERNAL_TOKEN = "test-internal-token-not-real"
 # Test-only credentials (never real ones).
 AGENT = {"username": "tania", "name": "Tania", "role": "agent", "password": "agent-pass-123"}
 SUPERVISOR = {"username": "lead", "name": "Team lead", "role": "supervisor", "password": "lead-pass-456"}
@@ -100,6 +101,8 @@ def make_settings(runtime_dir: Path, **overrides) -> Settings:
         "demo_phone_map": "",
         "ticket_start_number": 10234,
         "copilot_runtime_dir": str(runtime_dir),
+        "copilot_conversations_dir": str(runtime_dir.parent / "conversations"),
+        "internal_api_token": INTERNAL_TOKEN,
         "log_level": "WARNING",
         "copilot_session_secret": SESSION_SECRET,
         "copilot_users_file": str(runtime_dir.parent / "users.json"),

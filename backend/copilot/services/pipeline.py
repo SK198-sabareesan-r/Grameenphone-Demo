@@ -11,12 +11,13 @@ from copilot.models.participants import (
     COMPLIANCE_SPEAKERS,
     CUSTOMER,
     SUGGESTION_SPEAKERS,
+    UNKNOWN,
     normalize_speaker,
 )
 from copilot.services.sessions import CallSession, Turn
 
 log = logging.getLogger(__name__)
-SOURCES = ("typed",)  # the voice-agent source is added with the voice integration (M3)
+SOURCES = ("typed", "voice")  # "voice" = a call forwarded by the voice agent (M3)
 
 
 def session_view(c: Container, session: CallSession) -> dict:
@@ -24,6 +25,8 @@ def session_view(c: Container, session: CallSession) -> dict:
     return {
         "call_sid": session.call_sid,
         "ended": session.ended_at is not None,
+        "status": session.status,
+        "agent_mode": session.agent_mode,
         "turns": [t.__dict__ for t in session.turns],
         "card": session.card(),
         "mood": session.mood,
@@ -52,7 +55,9 @@ class CallPipeline:
         self.session: CallSession | None = None
         self.source: str | None = None
 
-    async def begin(self, call_sid: str | None, caller: str, source: str = "typed") -> None:
+    async def begin(
+        self, call_sid: str | None, caller: str, source: str = "typed", agent_mode: str | None = None
+    ) -> None:
         if source not in SOURCES:
             raise ValueError(f"unknown call source {source!r}")
         c = self._c
@@ -64,28 +69,48 @@ class CallPipeline:
                 customer=customer,
                 notice=c.customers.notice_for(customer),
                 compliance=c.compliance.initial_states(),
+                agent_mode=agent_mode,  # voice calls start with the AI agent: the first panel update already says so
             ),
             pipeline=self,
         )
         await c.hub.broadcast("call.started", session_view(c, self.session))
 
+    async def set_status(self, status: str, agent_mode: str | None = None) -> None:
+        """Voice calls: record the call status and who is handling the call, and tell the panel."""
+        session = self.session
+        if session is None or session.ended_at is not None:
+            return
+        session.status = status
+        if agent_mode:
+            session.agent_mode = agent_mode
+        await self._c.hub.broadcast(
+            "call.status",
+            {"call_sid": session.call_sid, "status": status, "agent_mode": session.agent_mode},
+        )
+
     # ---- Transcript handling ----
 
-    async def ingest(self, speaker: str, kind: str, text: str) -> None:
+    async def ingest(self, speaker: str, kind: str, text: str, ts: float | None = None) -> None:
         """Handle one transcript event. kind is 'partial' or 'final'.
 
         speaker is a participant role (customer | ai_agent | human_agent); "agent" means human_agent.
+        "unknown" is accepted only from the voice integration, for speech whose speaker could not be
+        verified: it is shown and stored, but never used for compliance, suggestions or analysis.
+        `ts` is the time the speech was recognised (defaults to now).
         """
-        role = normalize_speaker(speaker)
+        role = UNKNOWN if speaker == UNKNOWN else normalize_speaker(speaker)
         text = text.strip()
         session = self.session
         if not text or session is None or session.ended_at is not None:
             return
         c = self._c
         if kind == "partial":
-            await c.hub.broadcast("transcript", {"speaker": role, "kind": "partial", "text": text})
+            partial = {"speaker": role, "kind": "partial", "text": text}
+            if ts:  # voice calls carry the recognition time; typed lines keep the original shape
+                partial["ts"] = ts
+            await c.hub.broadcast("transcript", partial)
             return
-        turn = session.add_turn(role, text)
+        turn = session.add_turn(role, text, ts)
         await c.hub.broadcast("transcript", {**turn.__dict__, "kind": "final"})
         await self._after_final_turn(session, turn)
 
@@ -112,5 +137,6 @@ class CallPipeline:
         if session is None or session.ended_at is not None:
             return
         session.ended_at = time.time()
+        session.status = "ended"
         await self._c.hub.broadcast("call.ended", {"call_sid": session.call_sid})
         asyncio.create_task(self._c.summarizer.run(session))

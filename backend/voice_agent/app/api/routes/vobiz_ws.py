@@ -93,6 +93,11 @@ def create_ws_router(settings: Settings) -> APIRouter:
             "calls": manager.snapshot(),
             "call_manager": manager.metrics(),
             "transcript_pipeline": request.app.state.transcript_pipeline.snapshot(),  # counters only, no text
+            "human_handoff": request.app.state.handoff.describe(),
+            "copilot_forwarding": {
+                **request.app.state.copilot.describe(),
+                "calls": [s for s in (request.app.state.copilot.snapshot(c["call_id"]) for c in manager.snapshot()) if s],
+            },
         }
 
     @router.post("/api/vobiz/streams/{call_uuid}/test-tone", dependencies=internal)

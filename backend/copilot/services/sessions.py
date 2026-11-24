@@ -35,9 +35,13 @@ class CallSession:
     summary: dict | None = None
     ticket: dict | None = None
     recording_url: str = ""
+    # Set by voice calls (M3). status: in_progress | handoff_requested | dialing_human | with_human |
+    # on_hold | human_disconnected | ended. agent_mode: ai_agent | human_agent (None for typed calls).
+    status: str = "in_progress"
+    agent_mode: str | None = None
 
-    def add_turn(self, speaker: str, text: str) -> Turn:
-        turn = Turn(id=len(self.turns) + 1, speaker=speaker, text=text, ts=time.time())
+    def add_turn(self, speaker: str, text: str, ts: float | None = None) -> Turn:
+        turn = Turn(id=len(self.turns) + 1, speaker=speaker, text=text, ts=ts or time.time())
         self.turns.append(turn)
         return turn
 

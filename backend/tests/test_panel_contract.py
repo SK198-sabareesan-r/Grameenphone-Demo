@@ -7,7 +7,7 @@ from copilot.services.summarizer import EMPTY_DRAFT
 from tests.conftest import FAST_ARN
 
 SESSION_VIEW_KEYS = {
-    "call_sid", "ended", "turns", "card", "mood", "compliance",
+    "call_sid", "ended", "status", "agent_mode", "turns", "card", "mood", "compliance",
     "suggestions", "answers", "summary", "ticket", "recording_url",
 }
 FINAL_TURN_KEYS = {"id", "speaker", "text", "ts", "kind"}

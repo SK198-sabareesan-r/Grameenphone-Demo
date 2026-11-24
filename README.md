@@ -120,3 +120,7 @@ All routes need a signed-in agent except where marked public.
 | Customers | GET | `/api/customers/{id}` | One customer record |
 | Customers | GET / PUT | `/api/customers/active` | Customer used for the next call (PUT: demo controls only) |
 | Dashboard | GET | `/api/dashboard` | Adoption numbers |
+
+## Live voice calls (M3)
+
+The voice agent forwards live transcripts and call events to the Copilot, which stores them as JSON under `backend/data/conversations/` (git-ignored) and shows them live. The AI can hand a call to a human agent's phone and keeps assisting in the background. Setup, API, storage limits, hold/resume and speaker attribution: see [M3-LIVE-VOICE.md](M3-LIVE-VOICE.md).

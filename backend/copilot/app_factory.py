@@ -32,6 +32,7 @@ from copilot.api import (
     suggestion_routes,
     summary_routes,
     system_routes,
+    internal_routes,
     ticket_routes,
     transcript_routes,
 )
@@ -44,6 +45,7 @@ SELF_PROTECTED_ROUTERS = (
     system_routes,  # /api/health public; /api/data/reset requires demo controls + sign-in
     auth_routes,  # /api/auth/login public; /me and /ws-ticket require sign-in
     panel_routes,  # WebSocket: one-time ticket
+    internal_routes,  # voice agent only: X-Internal-Token
 )
 # Every route in these needs a signed-in agent (or higher).
 AGENT_ROUTERS = (

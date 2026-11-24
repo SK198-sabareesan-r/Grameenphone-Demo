@@ -2,6 +2,10 @@ export const initialCallState = {
   callSid: "",
   active: false,
   ended: false,
+  // Voice calls: status (in_progress | handoff_requested | dialing_human | with_human | on_hold |
+  // human_disconnected | ended) and who handles the call (ai_agent | human_agent). Null for typed calls.
+  status: null,
+  agentMode: null,
   turns: [],
   // One in-progress line per participant: customer, AI agent (voice bot), human agent.
   partials: { customer: "", ai_agent: "", human_agent: "" },
@@ -23,6 +27,8 @@ function fromView(view) {
     active: true,
     callSid: view.call_sid,
     ended: view.ended,
+    status: view.status ?? null,
+    agentMode: view.agent_mode ?? null,
     turns: view.turns,
     card: view.card,
     mood: view.mood,
@@ -71,10 +77,13 @@ export function callReducer(state, action) {
       return { ...state, answerPending: data };
     case "answer":
       return applyAnswer(state, data);
+    case "call.status":
+      return { ...state, status: data.status, agentMode: data.agent_mode ?? state.agentMode };
     case "call.ended":
       return {
         ...state,
         ended: true,
+        status: state.status ? "ended" : state.status,
         answerPending: null,
         partials: { ...initialCallState.partials },
       };

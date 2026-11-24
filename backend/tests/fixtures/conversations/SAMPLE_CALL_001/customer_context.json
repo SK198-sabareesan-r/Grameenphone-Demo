@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "call_id": "5401fd2e-6344-40df-a22c-c8ffea7a92e7",
+  "session_id": "sess-5401fd2e-6344-40df-a22c-c8ffea7a92e7",
+  "customer_id": "rahim",
+  "customer": {
+    "id": "rahim",
+    "name": "Rahim Uddin",
+    "msisdn": "01XXXXXXXX1",
+    "type": "Prepaid",
+    "tier": "Standard",
+    "area": "Mirpur",
+    "balance_bdt": 120,
+    "pack": {
+      "name": "25 GB, 30 days",
+      "data_left_gb": 18,
+      "valid_until": "05 Dec"
+    },
+    "recent_recharges": [
+      {
+        "amount_bdt": 200,
+        "date": "20 Nov"
+      },
+      {
+        "amount_bdt": 100,
+        "date": "10 Nov"
+      }
+    ],
+    "open_tickets": [],
+    "usage_pattern": "Used up the pack before validity ended in each of the last 3 months."
+  },
+  "caller_ref": "***3456",
+  "initial_intent": "I need help with my mobile recharge.",
+  "intent": null,
+  "conversation_history_refs": [
+    "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t2",
+    "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t4",
+    "5401fd2e-6344-40df-a22c-c8ffea7a92e7-t7"
+  ],
+  "collected_context": {}
+}

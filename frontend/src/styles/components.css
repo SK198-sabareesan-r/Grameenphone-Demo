@@ -554,3 +554,31 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Voice calls (M3): time on each line, who handles the call, speech with no verified speaker */
+.line-time {
+  margin-left: 8px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.line-unknown {
+  align-self: flex-start;
+  background: var(--gp-white);
+  border: 1px dotted var(--gp-grey);
+}
+
+.mode-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mode-ai_agent {
+  background: var(--gp-surface);
+}
+
+.mode-human_agent {
+  background: var(--gp-blue-soft);
+}

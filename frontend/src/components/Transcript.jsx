@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { SPEAKER_LABEL, formatClock } from "../state/callLabels";
 
-// Three separate identities. "agent" is the older name for the human agent (older call records).
-const SPEAKER_LABEL = {
-  customer: "Customer",
-  ai_agent: "AI agent",
-  human_agent: "Agent",
-  agent: "Agent",
-};
-
-function Line({ speaker, text, partial }) {
+function Line({ speaker, text, partial, ts }) {
+  const time = partial ? "" : formatClock(ts);
   return (
     <div className={`line line-${speaker} ${partial ? "line-partial" : ""}`}>
-      <span className="line-who">{SPEAKER_LABEL[speaker]}</span>
+      <span className="line-who">
+        {SPEAKER_LABEL[speaker] ?? speaker}
+        {time && <span className="line-time">{time}</span>}
+      </span>
       <span className="line-text">{text}</span>
     </div>
   );
@@ -68,7 +65,7 @@ export default function Transcript({ turns, partials }) {
       <div className="transcript" aria-live="polite">
         {empty && <p className="empty">Waiting for a call. The transcript appears as people speak.</p>}
         {turns.map((t) => (
-          <Line key={t.id} speaker={t.speaker} text={t.text} />
+          <Line key={t.id} speaker={t.speaker} text={t.text} ts={t.ts} />
         ))}
         {Object.entries(partials).map(
           ([speaker, text]) => text && <Line key={`p-${speaker}`} speaker={speaker} text={text} partial />

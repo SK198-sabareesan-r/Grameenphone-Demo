@@ -10,6 +10,7 @@ from copilot.services.ask import AskCopilot
 from copilot.services.auth import AuthService
 from copilot.services.bedrock import BedrockClient
 from copilot.services.compliance import ComplianceEngine
+from copilot.services.conversation_store import ConversationStore
 from copilot.services.customers import CustomerDirectory
 from copilot.services.dashboard import DashboardService
 from copilot.services.hub import PanelHub
@@ -26,6 +27,7 @@ REQUIRED_SETTINGS = (
     "aws_region",
     "bedrock_inference_profile_arn_fast",
     "bedrock_inference_profile_arn_summary",
+    "internal_api_token",  # voice-agent events (M3) are refused with 503 without it
 )
 
 
@@ -46,6 +48,7 @@ class Container:
     storage: CallStorage
     dashboard: DashboardService
     auth: AuthService
+    conversations: ConversationStore
 
 
 def build_container(settings: Settings, *, bedrock: BedrockClient | None = None) -> Container:
@@ -75,4 +78,5 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
         storage=storage,
         dashboard=DashboardService(settings, storage),
         auth=AuthService(settings),
+        conversations=ConversationStore(settings.conversations_dir),
     )

@@ -14,6 +14,7 @@ from tests.conftest import FAST_ARN, SUMMARY_ARN, settle
 
 REDUCER = BASE_DIR.parent / "frontend" / "src" / "state" / "callReducer.js"
 TRANSCRIPT_JSX = BASE_DIR.parent / "frontend" / "src" / "components" / "Transcript.jsx"
+LABELS_JS = BASE_DIR.parent / "frontend" / "src" / "state" / "callLabels.js"
 
 
 # --- the role model ----------------------------------------------------------------------------
@@ -148,7 +149,8 @@ def test_panel_receives_the_ai_agent_role(client):
 
 
 def test_frontend_labels_every_role():
-    source = TRANSCRIPT_JSX.read_text(encoding="utf-8")
+    assert "SPEAKER_LABEL" in TRANSCRIPT_JSX.read_text(encoding="utf-8")  # the labels live in state/callLabels.js
+    source = LABELS_JS.read_text(encoding="utf-8")
     for role in PARTICIPANTS:
         assert f"{role}:" in source.replace(" ", ""), f"Transcript.jsx has no label for {role}"
     assert 'agent:"Agent"' in source.replace(" ", "")  # older records still render

@@ -130,6 +130,13 @@ def create_router(settings: Settings) -> APIRouter:
                 "stream_content_type": app_settings.vobiz_inbound_content_type,
             },
         )
+        copilot = getattr(request.app.state, "copilot", None)
+        if copilot is not None:  # M3: tell the Copilot a call started. Non-blocking; never affects the call.
+            # The customer is the caller on inbound calls and the destination on outbound ones.
+            customer_number = call.from_number if (call.direction or "").lower() == "inbound" else call.to_number
+            copilot.emit_call_event(
+                call.call_uuid, "call_started", {"from_number": customer_number, "direction": call.direction}
+            )
         return Response(content=xml, media_type="application/xml")
 
     @router.post(hangup_path)

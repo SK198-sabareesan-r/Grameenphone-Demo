@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # Customer picker and data reset in the panel. Off unless explicitly enabled.
     demo_controls_enabled: bool = False
 
+    # Shared secret for internal service-to-service routes (/api/v1/internal/*). The voice agent sends
+    # it in the X-Internal-Token header (same variable name as in the voice agent's config).
+    # Empty = those routes answer 503 (fail closed).
+    internal_api_token: SecretStr = SecretStr("")
+
     # AWS
     aws_region: str = ""
     aws_access_key_id: SecretStr = SecretStr("")
@@ -79,10 +84,22 @@ class Settings(BaseSettings):
     # Where call records and tickets are written. Empty = data/runtime (the default).
     # Tests point this at a temporary folder so they never touch real runtime data.
     copilot_runtime_dir: str = ""
+    # Where per-call conversation JSON files are written. Empty = data/conversations (git-ignored).
+    copilot_conversations_dir: str = ""
 
     @property
     def data_dir(self) -> Path:
         return BASE_DIR / "data"
+
+    @property
+    def conversations_dir(self) -> Path:
+        path = (
+            Path(self.copilot_conversations_dir)
+            if self.copilot_conversations_dir
+            else self.data_dir / "conversations"
+        )
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
     @property
     def runtime_dir(self) -> Path:

@@ -12,6 +12,9 @@ AI_AGENT = "ai_agent"
 HUMAN_AGENT = "human_agent"
 PARTICIPANTS = (CUSTOMER, AI_AGENT, HUMAN_AGENT)
 LEGACY_ALIASES = {"agent": HUMAN_AGENT}
+# Speech from a voice call whose speaker could not be verified. Not a participant: it never counts
+# for compliance, suggestions or analysis, and normalize_speaker() refuses it.
+UNKNOWN = "unknown"
 
 # How each role is written in transcripts sent to the model.
 TRANSCRIPT_LABELS = {CUSTOMER: "CUSTOMER", AI_AGENT: "AI AGENT", HUMAN_AGENT: "HUMAN AGENT"}
