@@ -110,7 +110,7 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
         ask=AskCopilot(settings, bedrock, retriever),
         tickets=TicketService(settings, repo),
         storage=storage,
-        dashboard=DashboardService(settings, storage),
+        dashboard=DashboardService(storage),
         auth=AuthService(settings),
         conversations=build_conversation_store(settings),
     )

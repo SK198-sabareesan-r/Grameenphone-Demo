@@ -5,25 +5,35 @@ Nothing here tries to get around a site's blocks: a refused page is reported and
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+
+from scripts.page_expand import expand_page
 
 NAV_TIMEOUT_MS = 60_000
 MIN_TEXT_CHARS = 200
 BLOCKED_STATUSES = {401, 403, 429}
 ALLOWED_HOST_SUFFIX = "grameenphone.com"
 
-# Removes menus, footers, pop-ups and floating widgets, then adds a source line at the top.
-CLEAN_AND_LABEL_JS = """
-(info) => {
+# Removes menus, footers, pop-ups and floating widgets. Done before anything is opened, so a menu is never expanded.
+CLEAN_JS = """
+() => {
   const kill = (el) => el && el.remove();
   document.querySelectorAll('nav, footer, dialog, [role="navigation"], [role="dialog"], [role="banner"]')
     .forEach(kill);
+  document.querySelectorAll('[class*="footer" i], [id*="footer" i], [class*="survey" i], [class*="share-" i]').forEach((el) => {
+    if (el !== document.body && !el.querySelector('h1') && !el.querySelector('main, article')) kill(el);
+  });
   document.querySelectorAll('header').forEach((h) => { if (!h.querySelector('h1')) kill(h); });
   for (const el of Array.from(document.body.querySelectorAll('*'))) {
     const pos = getComputedStyle(el).position;
     if ((pos === 'fixed' || pos === 'sticky') && !el.querySelector('h1')) kill(el);
   }
+}
+"""
+# Adds a source line at the top, and returns how much text the page now holds.
+LABEL_JS = """
+(info) => {
   const box = document.createElement('div');
   box.style.cssText = 'border:1px solid #0078cf;padding:8px 12px;margin:0 0 16px;' +
     'font:12px sans-serif;color:#00508f;word-break:break-all';
@@ -32,7 +42,6 @@ CLEAN_AND_LABEL_JS = """
   return document.body.innerText.length;
 }
 """
-
 SCROLL_JS = """
 async () => {
   const step = 600;
@@ -57,6 +66,8 @@ class RenderResult:
     final_url: str = ""
     text_chars: int = 0
     error: str = ""
+    expand: dict | None = None  # what was opened on the page (tabs, accordions, Load more, details)
+    links: list = field(default_factory=list)  # detail pages and PDF documents the page links to
 
 
 def _host_allowed(url: str) -> bool:
@@ -125,11 +136,13 @@ class PdfRenderer:
             return RenderResult(status="off_site", http_status=http, final_url=page.url)
         page.evaluate(SCROLL_JS)
         page.emulate_media(media="screen")
+        page.evaluate(CLEAN_JS)
+        report = expand_page(page)  # open tabs, accordions, Load more and View details before printing
         chars = page.evaluate(
-            CLEAN_AND_LABEL_JS, {"title": info["title"], "url": info["url"], "retrieved": retrieved}
+            LABEL_JS, {"title": info["title"], "url": info["url"], "retrieved": retrieved}
         )
         if chars < MIN_TEXT_CHARS:
-            return RenderResult(status="empty", http_status=http, final_url=page.url, text_chars=chars)
+            return RenderResult(status="empty", http_status=http, final_url=page.url, text_chars=chars, expand=report.summary())
         out_path.parent.mkdir(parents=True, exist_ok=True)
         # Exact page text next to the PDF. Bengali text inside a PDF can gain stray spaces when read back.
         out_path.with_suffix(".txt").write_text(page.evaluate("document.body.innerText"), encoding="utf-8")
@@ -142,4 +155,5 @@ class PdfRenderer:
             footer_template=FOOTER_TEMPLATE,
             margin={"top": "14mm", "bottom": "16mm", "left": "12mm", "right": "12mm"},
         )
-        return RenderResult(status="ok", http_status=http, final_url=page.url, text_chars=chars)
+        return RenderResult(status="ok", http_status=http, final_url=page.url, text_chars=chars,
+                            expand=report.summary(), links=report.links)

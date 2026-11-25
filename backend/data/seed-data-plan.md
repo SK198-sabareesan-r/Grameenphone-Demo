@@ -134,7 +134,7 @@ Key: `call_id`. Empty on purpose. The app writes one item when a call ends, and 
 | `summary` | `{problem, checked, outcome, follow_up, category, subject}` |
 | `ticket`, `recording_url` | The ticket created, and where the recording is |
 
-It feeds the adoption dashboard (CP12) and the hand-off to the quality module (Q11). The dashboard's sample figures come from `dashboard_seed.json`, so no calls are seeded.
+It feeds the adoption dashboard (CP12) and the hand-off to the quality module (Q11). The dashboard counts these saved calls, so no calls are seeded and nothing on the dashboard is sample data.
 
 ### 2.5 `gp-copilot-packs`
 
@@ -206,7 +206,7 @@ The number that calls in the demo is `9500799295` (a 10-digit Indian number; Ban
 | CP9 lost SIM | Standard tier, so the Tk 300 fee applies. Mirpur GP Centres (samples) are in `gp-centres`. |
 | CP10 going abroad | `roaming`: Not activated. The 10 Days Travel Pack is in `packs`. |
 | CP11 recharge missing | There is no Tk 200 recharge in `recent_recharges`, so the customer's Tk 200 is visibly missing. |
-| CP6, CP7, CP12 | Knowledge base, the ticket and call record the app writes, and the dashboard sample numbers. No per-customer data. |
+| CP6, CP7, CP12 | Knowledge base, the ticket and call record the app writes, and the dashboard, which counts the saved calls. No per-customer data. |
 
 Dates are fixed text written for the 26 November demo. Move them if the demo date changes.
 ## 3. Which scenario uses what
@@ -224,7 +224,7 @@ Dates are fixed text written for the 26 November demo. Move them if the demo dat
 | CP9 Lost SIM | customers (Mitu), gp-centres | `sim-replacement`, `nba-sim-block` |
 | CP10 Roaming | customers (Sumon), packs | `roaming-*` articles, `nba-roaming-pack` |
 | CP11 English recharge | customers (recent recharges) | `recharge-terms` |
-| CP12 Dashboard | calls | `dashboard_seed.json` |
+| CP12 Dashboard | calls | none: counted from the saved calls |
 
 ## 4. Data that stays in files, not in DynamoDB
 
@@ -238,7 +238,6 @@ These are app logic or content that should be reviewed and versioned in git.
 | `mock/mood_keywords.json` | Words that signal an angry or frustrated customer, used when the model is unavailable |
 | `mock/network_keywords.json` | Words that signal a network problem, which prompts the agent to ask the location |
 | `mock/smalltalk.json` | Greetings and acknowledgements that skip the automatic lookup |
-| `mock/dashboard_seed.json` | Sample dashboard figures, labelled as sample |
 | `prompts/analyze_turn.md`, `live_assist.md`, `summary.md`, `ask_copilot.md` | The instructions given to the model |
 
 ### Knowledge articles (15, English only)
@@ -263,7 +262,7 @@ Bangla versions are not written yet. Each article carries its source URL, fetch 
 | Suggestion shown: lost SIM (CP9) | The suggestion carries up to 3 GP Centres per area, for the registered area and the current location | gp-centres |
 | Agent submits the ticket | The next free number (from `TICKET_START_NUMBER`) is saved with a check that it does not already exist. A second ticket created at the same moment takes the next number. | tickets |
 | Call ends, or a ticket is created | The whole call record is saved to DynamoDB, and a copy goes to the call-transcripts bucket under the customer's mobile number (`S3_TRANSCRIPT_BUCKET`). | calls |
-| Dashboard | Totals over the saved calls, plus the sample figures | calls, `dashboard_seed.json` |
+| Dashboard | Counts over the saved calls. Nothing is added or estimated. | calls |
 | Reset | Deletes the tickets the app created and all calls. Seeded tickets stay. | tickets, calls |
 
 **If DynamoDB cannot be reached** (for example the AWS credentials expired), every read above is answered from the seed data and every write is kept in memory only (nothing is written to the local disk). DynamoDB is tried again after `DATA_RETRY_AFTER_S` seconds. Whatever was written meanwhile is lost on restart and is not copied to the tables later. `GET /api/health` shows `fallback_active` and the reason.

@@ -139,7 +139,7 @@ All routes need a signed-in agent except where marked public.
 | Location | GET | `/api/locations` | Areas the agent can pick from |
 | Location | GET | `/api/location` | Registered and current location status |
 | Location | PUT | `/api/location` | The customer's current location. Checks the network status there |
-| Dashboard | GET | `/api/dashboard` | Adoption numbers |
+| Dashboard | GET | `/api/dashboard` | Adoption numbers counted from the saved calls: no sample data |
 
 ## Live voice calls (M3)
 
@@ -190,3 +190,17 @@ With `BEDROCK_KB_ID` set, the Bedrock Knowledge Base is the **only** source of k
 - **`GET /api/health`** shows `knowledge`: `backend` (`bedrock_kb` or `local_articles`), `available`, and `last_error`.
 - **Without `BEDROCK_KB_ID`** (development with no AWS) the local article files in `backend/data/knowledge/articles` are used, and `backend` says `local_articles`.
 - **Sources.** An answer lists only the documents it used. An answer that says "not in the knowledge" lists none.
+
+## Adoption dashboard
+
+Every number on the dashboard is counted from the saved calls (the `gp-copilot-calls` table) when the page is opened or refreshed. Nothing is seeded, estimated or labelled as a sample.
+
+| Figure | How it is counted |
+|---|---|
+| Calls that used Copilot | Saved calls with at least one transcript line |
+| Suggestions shown, accepted | The suggestions on those calls, and how many the agent used (said, or marked used) |
+| Tickets raised from calls | Calls that have a ticket |
+| Customer mood, last 7 days | Per Bangladesh day, each call counted once by the worst customer mood seen: angry, then frustrated, else calm. The bar is the share of that day's calls with a mood reading |
+| Most shown suggestions | Suggestions by title, with how many times each was shown and used |
+
+There is no "handling time saved" figure: the app does not measure it, so it is not shown. If the saved calls cannot be read, the page says so and shows only the calls made since the app started. The calls from testing count too: **Reset demo data** (a demo control) clears them.

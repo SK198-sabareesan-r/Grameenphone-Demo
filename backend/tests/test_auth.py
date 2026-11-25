@@ -263,7 +263,7 @@ def test_signed_in_agent_can_run_a_typed_call_end_to_end(client):
         while ws.receive_json()["type"] != "summary":
             pass
     assert client.get("/api/summary").json()["summary"]["category"] == "Network"
-    assert client.get("/api/dashboard").json()["live"]["calls"] == 1
+    assert client.get("/api/dashboard").json()["kpis"]["calls_with_copilot"] == 1
     assert client.post("/api/ask", json={"question": "zzqx plorp vrumm"}).status_code == 200
 
 

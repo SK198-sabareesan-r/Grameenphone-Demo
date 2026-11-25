@@ -54,6 +54,10 @@ class CallStorage:
             ServerSideEncryption="AES256",
         )
 
+    def source_status(self) -> dict:
+        """Where the saved calls are read from, for the dashboard: the calls table, or the in-memory stand-in."""
+        return self._repo.status()
+
     async def all_records(self) -> list[dict]:
         try:
             return await self._repo.list_calls()

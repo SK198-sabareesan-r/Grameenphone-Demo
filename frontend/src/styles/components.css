@@ -406,7 +406,8 @@
 }
 
 .trend-day {
-  width: 36px;
+  width: 74px;
+  white-space: nowrap;
   color: var(--gp-grey);
 }
 
@@ -1003,4 +1004,13 @@
 }
 .chat-md th {
   background: var(--gp-blue-soft);
+}
+
+.trend-count {
+  width: 62px;
+  text-align: right;
+  white-space: nowrap;
+}
+.dashboard-head {
+  margin-bottom: 10px;
 }

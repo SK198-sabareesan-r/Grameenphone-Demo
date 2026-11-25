@@ -128,7 +128,8 @@ def process_page(page: dict, args, robots: Robots, renderer: PdfRenderer, today:
         return {**entry, "status": verdict, "final_url": last_url}
     result = renderer.render(page, out_path, today)
     entry.update(status=result.status, http_status=result.http_status, final_url=result.final_url,
-                 text_chars=result.text_chars, error=result.error)
+                 text_chars=result.text_chars, error=result.error, expanded=result.expand)
+    entry["_links"] = result.links  # followed by render_all, not kept in index.json
     if result.status == "ok":
         entry.update(bytes=out_path.stat().st_size, sha256=sha256(out_path))
     return entry
