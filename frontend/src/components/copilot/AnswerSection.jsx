@@ -12,7 +12,6 @@ function Sources({ sources }) {
       {sources.map((s) => (
         <a key={s.id} href={s.source_url.startsWith("http") ? s.source_url : undefined} target="_blank" rel="noreferrer">
           {s.title}
-          {s.type === "mock" ? " (mock)" : ""}
         </a>
       ))}
     </p>

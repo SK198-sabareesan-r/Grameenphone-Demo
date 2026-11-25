@@ -72,7 +72,6 @@ export default function SummaryTicket({ call }) {
       {ticket && (
         <p className="ticket-result">
           Ticket created: <strong>{ticket.ticket_id}</strong>
-          <span className="muted small"> (mock ticket system)</span>
         </p>
       )}
     </div>

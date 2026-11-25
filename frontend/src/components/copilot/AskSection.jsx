@@ -45,7 +45,6 @@ export default function AskSection() {
               {result.sources.map((s) => (
                 <a key={s.id} href={s.source_url} target="_blank" rel="noreferrer">
                   {s.title}
-                  {s.type === "mock" ? " (mock)" : ""}
                 </a>
               ))}
             </p>

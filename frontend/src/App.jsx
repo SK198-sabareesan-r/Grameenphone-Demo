@@ -1,6 +1,5 @@
 import { useState } from "react";
 import Header from "./components/Header";
-import DemoControls from "./components/DemoControls";
 import LiveCallPage from "./pages/LiveCallPage";
 import DashboardPage from "./pages/DashboardPage";
 import TicketsPage from "./pages/TicketsPage";
@@ -28,7 +27,6 @@ function Console({ auth }) {
         {view === "tickets" && <TicketsPage />}
         {view === "dashboard" && <DashboardPage />}
       </main>
-      {auth.demoControls && <DemoControls />}
     </div>
   );
 }
