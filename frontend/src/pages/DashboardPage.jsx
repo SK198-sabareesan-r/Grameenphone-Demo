@@ -65,7 +65,7 @@ export default function DashboardPage() {
         </div>
       </div>
       <p className="mock-note">
-        {data.label}. Live calls on this machine so far: {data.live.calls}.
+        Live calls so far: {data.live.calls}.
       </p>
     </div>
   );

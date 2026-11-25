@@ -5,7 +5,6 @@ function PackLine({ pack }) {
     <p className="suggestion-detail">
       <strong>{pack.name}</strong>: Tk {pack.price_bdt}, {pack.validity_days} days
       {pack.activation_code ? `, dial ${pack.activation_code}` : ""}
-      {pack.sample_offer ? " (sample)" : ""}
     </p>
   );
 }
@@ -17,7 +16,6 @@ function Centres({ centres }) {
       {centres.map((c) => (
         <li key={`${c.area}-${c.name}`}>
           <strong>{c.name}</strong>
-          {c.type === "sample" ? " (sample)" : ""}
           {c.hours ? `, open ${c.hours}` : ""}
           <span className="muted small"> &middot; {c.address}</span>
         </li>

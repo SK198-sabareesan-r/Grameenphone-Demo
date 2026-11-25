@@ -107,7 +107,6 @@ function Card({ call }) {
       </Row>
       <LocationSection call={call} />
       {error && <p className="error">{error}</p>}
-      <p className="mock-note">Mock data built for the demo, not a live GP system.</p>
     </>
   );
 }
