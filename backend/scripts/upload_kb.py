@@ -2,6 +2,7 @@
 
 Run from backend/:
     python -m scripts.upload_kb --dry-run     list what would be uploaded
+    python -m scripts.upload_kb --only articles   upload only the articles (or: --only pdf). Re-uploading a PDF makes the next sync parse it again.
     python -m scripts.upload_kb               upload (overwrites objects with the same key)
 
 Bucket and credentials come from config/.env (S3_BUCKET, AWS_*). Layout in the bucket:
@@ -52,13 +53,16 @@ def pdf_items() -> list[tuple[Path, str, dict]]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
-    dry_run = parser.parse_args().dry_run
+    parser.add_argument("--only", choices=("articles", "pdf"))
+    args = parser.parse_args()
+    dry_run = args.dry_run
     settings = Settings()
     if not settings.s3_bucket:
         raise SystemExit("S3_BUCKET is empty in config/.env")
     s3 = None if dry_run else aws_session(settings).client("s3")
     count = 0
-    for path, key, attrs in article_items() + pdf_items():
+    items = (article_items() if args.only != "pdf" else []) + (pdf_items() if args.only != "articles" else [])
+    for path, key, attrs in items:
         sidecar = json.dumps({"metadataAttributes": attrs}, ensure_ascii=False, indent=2).encode("utf-8")
         print(("would upload " if dry_run else "upload ") + key)
         if s3:

@@ -5,7 +5,10 @@ from copilot.services.bedrock import BedrockClient
 from copilot.services.kb_retriever import KnowledgeRetriever
 from copilot.utils.helpers import read_text, render_prompt
 
-SYSTEM = "You answer contact-centre agent questions from approved articles and reply with JSON only."
+SYSTEM = (
+    "You answer contact-centre agent questions from approved articles and reply with JSON only. "
+    "Always answer in English, whatever language the question is in."
+)
 NO_ANSWER = "I could not find this in the approved knowledge. Please escalate to a supervisor."
 
 

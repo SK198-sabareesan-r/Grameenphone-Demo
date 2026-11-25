@@ -11,6 +11,7 @@ Access rules:
 * Demo-only routes additionally need DEMO_CONTROLS_ENABLED=true.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -42,6 +43,8 @@ from copilot.api.deps import require_role
 from copilot.container import build_container
 from copilot.repo import DataUnavailable
 from copilot.services.bedrock import BedrockClient
+
+from copilot.services.warmup import warm_up
 
 log = logging.getLogger(__name__)
 
@@ -91,7 +94,11 @@ def create_app(
             await container.areas.load()  # the area names the agent can type, ready before the first call
         except Exception:
             log.exception("Could not load the network areas at startup. They are loaded on first use.")
+        # The first AWS calls are 3 to 5 s slower, so make them now instead of during the first call.
+        warm = asyncio.create_task(warm_up(container)) if settings.startup_warm_up else None
         yield
+        if warm:
+            warm.cancel()
 
     docs = settings.copilot_api_docs_enabled
     app = FastAPI(

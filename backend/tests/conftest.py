@@ -97,6 +97,7 @@ def make_settings(runtime_dir: Path, **overrides) -> Settings:
         "bedrock_inference_profile_arn_fast": FAST_ARN,
         "bedrock_inference_profile_arn_summary": SUMMARY_ARN,
         "sarvam_api_key": "",
+        "startup_warm_up": False,
         "demo_default_customer_id": "rahim",
         "demo_phone_map": "",
         "ticket_start_number": 10234,

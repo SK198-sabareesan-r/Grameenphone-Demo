@@ -7,6 +7,7 @@ A suggestion can carry the details it refers to, read from the data store: the p
 import logging
 from pathlib import Path
 
+from copilot.models.participants import SUGGESTION_SPEAKERS
 from copilot.repo.base import DataUnavailable, Repo
 from copilot.services.sessions import CallSession
 from copilot.utils.helpers import contains_any, load_json
@@ -15,6 +16,7 @@ log = logging.getLogger(__name__)
 PACK_FIELDS = ("name", "data_gb", "minutes", "price_bdt", "validity_days", "activation_code", "sample_offer")
 CENTRE_FIELDS = ("area", "name", "address", "hours", "type")
 MAX_CENTRES_PER_AREA = 3
+RECENT_TURNS = 4  # how many of the latest lines are checked for a suggestion the agent has already said
 
 
 class NbaCatalog:
@@ -35,10 +37,18 @@ class NbaCatalog:
             "title": rule["title"],
             "text": rule["text"],
             "source": rule["source"],
-            "used": False,
+            "used": self._said_recently(session, rule),
             **await self._details(session, rule),
         }
         return True
+
+    @staticmethod
+    def _said_recently(session: CallSession, rule: dict) -> bool:
+        """The analysis can finish after the agent has already said the suggestion, so look back a few lines."""
+        recent = session.turns[-RECENT_TURNS:]
+        return any(
+            t.speaker in SUGGESTION_SPEAKERS and contains_any(t.text, rule["used_keywords"]) for t in recent
+        )
 
     async def _details(self, session: CallSession, rule: dict) -> dict:
         """The pack or the GP Centres this suggestion refers to. If the data store fails, show it without them."""
