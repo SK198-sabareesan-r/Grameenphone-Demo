@@ -45,3 +45,22 @@ export function formatClock(ts) {
     second: "2-digit",
   });
 }
+
+// Seconds since the epoch -> "12 Mar, 14:03". Empty if missing.
+export function formatDateTime(ts) {
+  if (!ts) return "";
+  return new Date(ts * 1000).toLocaleString([], {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Length of a call in seconds -> "4 min 12 s". Empty if either time is missing.
+export function formatDuration(startedAt, endedAt) {
+  if (!startedAt || !endedAt || endedAt < startedAt) return "";
+  const total = Math.round(endedAt - startedAt);
+  const minutes = Math.floor(total / 60);
+  return minutes ? `${minutes} min ${total % 60} s` : `${total} s`;
+}

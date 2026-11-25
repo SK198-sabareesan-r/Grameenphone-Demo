@@ -83,6 +83,8 @@ export const api = {
   },
   createTicket: (ticket) => request(API.tickets, { method: "POST", body: ticket }),
   dashboard: () => request(API.dashboard),
+  listSessions: () => request(`${API.sessions}?limit=100`),
+  getSession: (id) => request(API.session(id)),
   confirmIdentity: (mobileNumber) =>
     request(API.identity, { method: "POST", body: { mobile_number: mobileNumber } }),
   clearIdentity: () => request(API.identity, { method: "DELETE" }),

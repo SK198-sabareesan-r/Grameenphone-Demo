@@ -66,9 +66,11 @@ export default function AnswerSection({ call }) {
     <section className="shell-section">
       <div className="card-head">
         <p className="section-label">Suggested answer</p>
-        <button className="btn btn-ghost btn-small" onClick={lookUpNow} disabled={!call.active || call.ended}>
-          Look up latest
-        </button>
+        {!call.readOnly && (
+          <button className="btn btn-ghost btn-small" onClick={lookUpNow} disabled={!call.active || call.ended}>
+            Look up latest
+          </button>
+        )}
       </div>
       {call.answerPending && (
         <p className="looking-up">
@@ -76,7 +78,11 @@ export default function AnswerSection({ call }) {
         </p>
       )}
       {!latest && !call.answerPending && (
-        <p className="empty">When the customer asks something, the answer from the approved knowledge appears here.</p>
+        <p className="empty">
+          {call.readOnly
+            ? "No answer was suggested on this call."
+            : "When the customer asks something, the answer from the approved knowledge appears here."}
+        </p>
       )}
       {latest && <AnswerCard entry={latest} latest />}
       {earlier.length > 0 && (

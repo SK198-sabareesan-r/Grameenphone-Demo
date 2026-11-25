@@ -22,6 +22,7 @@ import json
 import logging
 import time
 import urllib.request
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -29,12 +30,15 @@ from urllib.robotparser import RobotFileParser
 
 from config.settings import get_settings
 from copilot.utils.aws import aws_session
+from scripts.follow_links import download_pdf, normalize, pick_children
 from scripts.pdf_render import PdfRenderer
 from scripts.redirects import check_redirect_chain
 
 log = logging.getLogger("export_pdfs")
 USER_AGENT = "Mozilla/5.0"
 DEFAULT_DELAY_SECONDS = 10.0
+DEFAULT_MAX_CHILDREN = 12  # detail pages and documents followed from one page
+DEFAULT_MAX_FOLLOW = 60  # in one run
 NO_PAGE_LOADED = {"disallowed_by_robots", "too_many_redirects"}  # nothing was fetched, so no need to wait
 
 
@@ -49,6 +53,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="list what would run, no browser")
     parser.add_argument("--upload", action="store_true", help="copy PDFs and index.json to S3")
     parser.add_argument("--force", action="store_true", help="render again even if the PDF already exists")
+    parser.add_argument("--no-follow", action="store_true", help="do not export the detail pages and PDF documents a page links to")
+    parser.add_argument("--max-children", type=int, default=DEFAULT_MAX_CHILDREN, help="links followed from one page")
+    parser.add_argument("--max-follow", type=int, default=DEFAULT_MAX_FOLLOW, help="links followed in one run")
     return parser.parse_args()
 
 
@@ -118,6 +125,8 @@ def process_page(page: dict, args, robots: Robots, renderer: PdfRenderer, today:
     out_path = args.out / page["language"] / f'{page["id"]}.pdf'
     entry = {k: page[k] for k in ("id", "language", "category", "title", "url")}
     entry.update(status="", file=str(out_path.relative_to(args.out)).replace("\\", "/"), retrieved=today)
+    if page.get("parent"):
+        entry.update(parent=page["parent"], kind=page["kind"])
     if not robots.allowed(page["url"]):
         return {**entry, "status": "disallowed_by_robots"}
     if out_path.exists() and not args.force:
@@ -126,6 +135,12 @@ def process_page(page: dict, args, robots: Robots, renderer: PdfRenderer, today:
     last_url, verdict = check_redirect_chain(page["url"], robots.allowed, USER_AGENT)
     if verdict != "ok":
         return {**entry, "status": verdict, "final_url": last_url}
+    if page.get("kind") == "file":
+        status, detail = download_pdf(last_url, out_path, USER_AGENT)
+        entry.update(status=status, final_url=detail if status == "ok" else last_url, error="" if status == "ok" else detail)
+        if status == "ok":
+            entry.update(bytes=out_path.stat().st_size, sha256=sha256(out_path))
+        return entry
     result = renderer.render(page, out_path, today)
     entry.update(status=result.status, http_status=result.http_status, final_url=result.final_url,
                  text_chars=result.text_chars, error=result.error, expanded=result.expand)
@@ -134,22 +149,32 @@ def process_page(page: dict, args, robots: Robots, renderer: PdfRenderer, today:
         entry.update(bytes=out_path.stat().st_size, sha256=sha256(out_path))
     return entry
 
-
-def render_all(pages: list[dict], args, robots: Robots) -> dict[str, dict]:
+def render_all(pages: list[dict], args, robots: Robots, known_urls: set[str]) -> dict[str, dict]:
     args.out.mkdir(parents=True, exist_ok=True)
     index_path = args.out / "index.json"
     index = load_index(index_path)
     today = datetime.now(timezone.utc).date().isoformat()
+    queue, followed, done = deque(pages), 0, 0
     with PdfRenderer(allow_navigation=robots.allowed) as renderer:
-        for n, page in enumerate(pages, 1):
+        while queue:
+            page = queue.popleft()
+            done += 1
             entry = process_page(page, args, robots, renderer, today)
+            links = entry.pop("_links", [])
             index[f'{entry["language"]}/{entry["id"]}'] = entry
             save_index(index_path, index)  # saved after every page, so an interrupted run keeps its progress
-            log.info("[%d/%d] %-8s %s/%s", n, len(pages), entry["status"], entry["language"], entry["id"])
-            if n < len(pages) and not entry.get("note") and entry["status"] not in NO_PAGE_LOADED:
+            log.info("[%d/%d] %-8s %s/%s%s", done, done + len(queue), entry["status"], entry["language"], entry["id"],
+                     f"  <- {page['parent']}" if page.get("parent") else "")
+            if entry["status"] == "ok" and entry.get("expanded"):
+                log.info("        opened: %s", {k: v for k, v in entry["expanded"].items() if v and k != "errors"})
+            if not args.no_follow and entry["status"] == "ok" and not page.get("parent"):
+                room = min(args.max_children, args.max_follow - followed)
+                children = pick_children(page, links, known_urls, robots.allowed, max(room, 0))
+                followed += len(children)
+                queue.extend(children)
+            if queue and not entry.get("note") and entry["status"] not in NO_PAGE_LOADED:
                 time.sleep(max(args.delay, robots.crawl_delay(page["url"])))
     return index
-
 
 def upload(index: dict[str, dict], out: Path) -> int:
     settings = get_settings()
@@ -199,7 +224,8 @@ def main() -> None:
         log.info("%d pages. Delay between pages: %.0fs or the site's Crawl-delay, whichever is longer.",
                  len(pages), args.delay)
         return
-    index = render_all(pages, args, robots)
+    known = {normalize(p["url"]) for p in json.loads(args.manifest.read_text(encoding="utf-8-sig"))["pages"]}
+    index = render_all(pages, args, robots, known)
     summarize(index, pages)
     if args.upload:
         log.info("Uploaded %d PDFs to S3.", upload(index, args.out))

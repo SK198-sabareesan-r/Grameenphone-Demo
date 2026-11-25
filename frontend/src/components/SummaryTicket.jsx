@@ -8,6 +8,47 @@ const FIELDS = [
   ["follow_up", "Follow-up"],
 ];
 
+// A saved session: the summary and the ticket as they were stored. Nothing to edit or submit.
+function SavedSummary({ summary, ticket }) {
+  return (
+    <div className="card">
+      <h2>Call summary and ticket</h2>
+      {!summary && <p className="empty">No summary was saved for this call.</p>}
+      {summary && (
+        <dl className="saved-summary">
+          {summary.subject && (
+            <>
+              <dt>Subject</dt>
+              <dd>{summary.subject}</dd>
+            </>
+          )}
+          {summary.category && (
+            <>
+              <dt>Category</dt>
+              <dd>{summary.category}</dd>
+            </>
+          )}
+          {FIELDS.map(([key, label]) =>
+            summary[key] ? (
+              <div key={key}>
+                <dt>{label}</dt>
+                <dd>{summary[key]}</dd>
+              </div>
+            ) : null
+          )}
+        </dl>
+      )}
+      {ticket ? (
+        <p className="ticket-result">
+          Ticket created: <strong>{ticket.ticket_id}</strong>
+        </p>
+      ) : (
+        <p className="muted small">No ticket was raised for this call.</p>
+      )}
+    </div>
+  );
+}
+
 export default function SummaryTicket({ call }) {
   const { summary, ticket, ended, callSid, card } = call;
   const [form, setForm] = useState(null);
@@ -23,6 +64,7 @@ export default function SummaryTicket({ call }) {
   }, [summary]);
 
   if (!ended) return null;
+  if (call.readOnly) return <SavedSummary summary={summary} ticket={ticket} />;
 
   async function submit(event) {
     event.preventDefault();

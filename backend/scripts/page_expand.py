@@ -22,6 +22,8 @@ DETAIL_PATTERN = (
 MAX_MORE_ROUNDS = 40  # clicks on "Load more" per page
 MAX_DETAIL_CLICKS = 80  # "View details" buttons per page
 SETTLE_MS = 500
+TAB_RETRIES = 4
+TAB_RETRY_MS = 1000
 NETWORK_WAIT_MS = 3000
 CLICK_TIMEOUT_MS = 4000
 
@@ -219,6 +221,8 @@ COPY_PANEL_JS = (
 """
 )
 
+TABS_EXPECTED_JS = "() => !!document.querySelector('[role=tablist], [class*=chakra-tabs]')"
+
 REMOVE_TAB_BOX_JS = "(n) => { const b = document.querySelector('[data-gp-box=\"' + n + '\"]'); if (b) b.remove(); }"
 
 # Links worth following: "View details" style links to pages on the site, and PDF documents.
@@ -242,7 +246,8 @@ COLLECT_LINKS_JS = (
 
 @dataclass
 class ExpandReport:
-    chars_before: int = 0
+    chars_raw: int = 0  # the page text before menus and footers were removed
+    chars_before: int = 0  # after they were removed, before anything was opened
     chars_after: int = 0
     tabs: int = 0
     collapsed_opened: int = 0
@@ -254,7 +259,7 @@ class ExpandReport:
 
     def summary(self) -> dict:
         return {
-            "chars_before": self.chars_before, "chars_after": self.chars_after, "tabs": self.tabs,
+            "chars_raw": self.chars_raw, "chars_before": self.chars_before, "chars_after": self.chars_after, "tabs": self.tabs,
             "collapsed_opened": self.collapsed_opened, "more_clicks": self.more_clicks,
             "detail_clicks": self.detail_clicks, "dialogs_read": self.dialogs_read,
             "links_found": len(self.links), "errors": self.errors[:5],
@@ -347,41 +352,108 @@ def settle(page, report: ExpandReport) -> None:
     open_collapsed(page, report)
 
 
+def _page_key(url: str) -> str:
+    """A page address without its #fragment and trailing slash, to tell whether a click moved to another page."""
+    return url.split("#")[0].rstrip("/")
+
+
+def _tab_group(page, number: int, patience: int = TAB_RETRIES) -> dict | None:
+    """The tab group at this position, tagged for clicking. A page that has a tab list but not yet usable tabs
+    (the carousel around them is still starting) is given a few short retries."""
+    for _ in range(patience):
+        groups = page.evaluate(TAG_TABS_JS)
+        if number < len(groups):
+            return groups[number]
+        if number > 0 or not page.evaluate(TABS_EXPECTED_JS):
+            return None
+        page.wait_for_timeout(TAB_RETRY_MS)
+    return None
+
+
+# Each tab's own address, when the tab is a link (some sites give every tab its own page). Read before anything
+# is clicked, so no click has to leave the page to find out.
+TAB_ADDRESSES_JS = r"""
+(n) => [...document.querySelectorAll('[data-gp-tab^="' + n + '-"]')].map((tab) => {
+  const a = tab.closest('a[href]') || tab.querySelector('a[href]');
+  const href = a ? a.href : '';
+  return href && !href.includes('#') ? href : '';
+})
+"""
+
+
+def _open_tab_group(page, report: ExpandReport, number: int, start: str) -> None:
+    """Open every tab of one group. A tab that only changes the page in place is clicked and its panel copied in
+    place of the tab box. A tab that is a link to its own page is recorded instead, so the exporter renders that
+    page on its own: clicking it would leave this page."""
+    group = _tab_group(page, number)
+    if not group:
+        return
+    addresses = page.evaluate(TAB_ADDRESSES_JS, group["box"])
+    copied = 0
+    for index, label in enumerate(group["labels"]):
+        address = addresses[index] if index < len(addresses) else ""
+        if address and _page_key(address) != start:
+            report.links.append({"href": address, "text": label, "kind": "page"})
+            continue
+        if not _click(page, "data-gp-tab", f"{group['box']}-{index}"):
+            continue
+        _wait_for_content(page)
+        if _page_key(page.url) != start:  # a tab without a visible link still moved to another page
+            report.links.append({"href": page.url, "text": label, "kind": "page"})
+            report.errors.append(f"tab {label!r} left the page; the rest of this tab group was not opened")
+            return
+        settle(page, report)
+        copied += bool(page.evaluate(COPY_PANEL_JS, [group["box"], index, label]))
+    if copied:
+        page.evaluate(REMOVE_TAB_BOX_JS, group["box"])
+        report.tabs += copied
+
+
 def expand_tabs(page, report: ExpandReport) -> None:
-    """Open every tab in turn and copy its panel in place of the tab box, so all tabs are printed."""
-    for group in page.evaluate(TAG_TABS_JS):
-        copied = 0
-        for index, label in enumerate(group["labels"]):
-            if not _click(page, "data-gp-tab", f"{group['box']}-{index}"):
-                continue
-            _wait_for_content(page)
-            settle(page, report)
-            copied += bool(page.evaluate(COPY_PANEL_JS, [group["box"], index, label]))
-        if copied:
-            page.evaluate(REMOVE_TAB_BOX_JS, group["box"])
-            report.tabs += copied
+    start = _page_key(page.url)
+    number = 0
+    while _page_key(page.url) == start and _tab_group(page, number, patience=1 if number else TAB_RETRIES):
+        _open_tab_group(page, report, number, start)
+        number += 1
+
+# Lines the site's editor pasted into some pages. They say nothing about the product.
+TIDY_JS = r"""
+() => {
+  const junk = /^(Email Signature Editor|Email Signature with Logo|Converted to clean HTML by WordToHTML\.net)\s*$/i;
+  let removed = 0;
+  document.querySelectorAll('p, div, span, li, td, h1, h2, h3, h4, h5, h6').forEach((el) => {
+    if (el.children.length === 0 && junk.test((el.textContent || '').trim())) { el.remove(); removed++; }
+  });
+  return removed;
+}
+"""
 
 
 def expand_page(page) -> ExpandReport:
     """Open everything the page hides. A step that fails is recorded and skipped: the page is still printed."""
     report = ExpandReport(chars_before=page.evaluate(PAGE_TEXT_LENGTH_JS))
-    for name, step in (("settle", settle), ("tabs", expand_tabs), ("settle again", settle)):
+    steps = (
+        ("settle", lambda: settle(page, report)),
+        ("tabs", lambda: expand_tabs(page, report)),
+        ("settle again", lambda: settle(page, report)),
+        ("tidy", lambda: page.evaluate(TIDY_JS)),
+    )
+    for name, step in steps:
         try:
-            step(page, report)
+            step()
         except Exception as error:
             report.errors.append(f"{name}: {str(error).splitlines()[0][:120]}")
             log.warning("expansion step %r failed: %s", name, report.errors[-1])
     try:
-        seen = set()
+        seen = {_page_key(link["href"]) for link in report.links}
         for link in page.evaluate(COLLECT_LINKS_JS, [DETAIL_PATTERN]):
-            if link["href"] not in seen:
-                seen.add(link["href"])
+            if _page_key(link["href"]) not in seen:
+                seen.add(_page_key(link["href"]))
                 report.links.append(link)
     except Exception as error:
         report.errors.append(f"links: {str(error).splitlines()[0][:120]}")
     report.chars_after = page.evaluate(PAGE_TEXT_LENGTH_JS)
     return report
-
 
 def looks_like_file(url: str) -> bool:
     return bool(re.search(r"\.pdf($|[?#])", url, re.I))

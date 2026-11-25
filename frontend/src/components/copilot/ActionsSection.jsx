@@ -25,7 +25,7 @@ function Centres({ centres }) {
 }
 
 // The next best action, shown under the answer. Nothing is drawn until there is one.
-export default function ActionsSection({ items }) {
+export default function ActionsSection({ items, readOnly = false }) {
   if (items.length === 0) return null;
   return (
     <section className="shell-section">
@@ -40,6 +40,8 @@ export default function ActionsSection({ items }) {
           </div>
           {s.used ? (
             <span className="pill pill-ok">Used</span>
+          ) : readOnly ? (
+            <span className="pill">Not used</span>
           ) : (
             <button className="btn btn-ghost" onClick={() => api.useSuggestion(s.id).catch(() => {})}>
               Mark used

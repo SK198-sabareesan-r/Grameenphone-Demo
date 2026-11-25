@@ -23,10 +23,13 @@ export const initialCallState = {
   summary: null,
   ticket: null,
   recordingUrl: "",
+  // True for a finished call opened from session history: shown as it was saved, nothing can be changed.
+  readOnly: false,
+  startedAt: null, // seconds since the epoch; only set for saved calls
 };
 
 // Replace the whole call from a snapshot sent by the backend.
-function fromView(view) {
+export function callFromView(view, { readOnly = false } = {}) {
   return {
     ...initialCallState,
     active: true,
@@ -47,6 +50,8 @@ function fromView(view) {
     summary: view.summary,
     ticket: view.ticket,
     recordingUrl: view.recording_url,
+    startedAt: view.started_at ?? null,
+    readOnly,
   };
 }
 
@@ -71,7 +76,7 @@ export function callReducer(state, action) {
   switch (type) {
     case "snapshot":
     case "call.started":
-      return fromView(data);
+      return callFromView(data);
     case "transcript":
       return applyTranscript(state, data);
     case "card":

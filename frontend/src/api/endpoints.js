@@ -22,5 +22,7 @@ export const API = {
   tickets: "/api/tickets",
   ask: "/api/ask",
   dashboard: "/api/dashboard",
+  sessions: "/api/sessions",
+  session: (id) => `/api/sessions/${encodeURIComponent(id)}`,
   resetData: "/api/data/reset",
 };

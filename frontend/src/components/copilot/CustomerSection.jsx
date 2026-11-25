@@ -15,6 +15,13 @@ function Row({ label, children }) {
 // Nothing is typed here. The number is picked up from the call, and the card loads by itself.
 function Waiting({ call }) {
   const { heard, callerNumber, active, ended } = call;
+  if (call.readOnly) {
+    return (
+      <p className="empty">
+        No customer card was loaded on this call{callerNumber ? ` (caller ID ${callerNumber})` : ""}.
+      </p>
+    );
+  }
   if (!active) return <p className="empty">Waiting for a call.</p>;
   return (
     <>
@@ -29,11 +36,17 @@ function Waiting({ call }) {
           automatically.
         </p>
       )}
+      {callerNumber && !ended && (
+        <p className="prompt-banner">
+          <strong>Verify identity.</strong> The call came from {callerNumber}. Ask the customer to say their mobile
+          number before any account details are shown.
+        </p>
+      )}
       <NumberEntry
         initial={callerNumber}
-        label="Show card"
+        label="Verify identity"
         placeholder="Or type the mobile number"
-        hint={callerNumber ? "Pre-filled from the caller ID. Confirm it with the customer." : ""}
+        hint={callerNumber ? "Pre-filled from the caller ID. Verify it with the customer first." : ""}
         callActive={active}
         callEnded={ended}
       />
@@ -66,9 +79,11 @@ function Card({ call }) {
             </div>
           </div>
         </div>
-        <button className="btn btn-ghost btn-small" onClick={wrongCustomer} disabled={call.ended}>
-          Not this customer
-        </button>
+        {!call.readOnly && (
+          <button className="btn btn-ghost btn-small" onClick={wrongCustomer} disabled={call.ended}>
+            Not this customer
+          </button>
+        )}
       </div>
       {confirmed ? (
         <p className="confirm-state">
@@ -76,18 +91,20 @@ function Card({ call }) {
         </p>
       ) : (
         <div className="confirm-state unconfirmed">
-          <span className="pill pill-warn">Not confirmed yet</span>
+          <span className="pill pill-warn">Verify identity</span>
           <p className="small">
             Found from the caller ID. Ask the customer to say their mobile number. It is picked up automatically,
             or confirm it here.
           </p>
-          <NumberEntry
-            initial={customer.msisdn}
-            label="Confirm number"
-            placeholder="Mobile number the customer gave"
-            callActive={call.active}
-            callEnded={call.ended}
-          />
+          {!call.readOnly && (
+            <NumberEntry
+              initial={customer.msisdn}
+              label="Verify identity"
+              placeholder="Mobile number the customer gave"
+              callActive={call.active}
+              callEnded={call.ended}
+            />
+          )}
         </div>
       )}
       <Row label="Plan">{customer.pack.name}</Row>

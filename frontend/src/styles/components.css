@@ -1014,3 +1014,134 @@
 .dashboard-head {
   margin-bottom: 10px;
 }
+
+/* ---- Session history sidebar (left of the live call) ---- */
+.live-layout {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.live-layout > .live-grid {
+  flex: 1;
+  min-width: 0;
+}
+.session-sidebar {
+  position: sticky;
+  top: 12px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 100px);
+  background: var(--gp-white);
+  border: 1px solid var(--gp-border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+  transition: width 0.15s ease;
+}
+.session-sidebar.open {
+  width: 300px;
+}
+.session-sidebar.closed {
+  width: 76px;
+  align-items: center;
+  padding: 10px 6px;
+}
+.session-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.session-sidebar-head h2 {
+  margin: 0;
+}
+.session-tools {
+  display: flex;
+  gap: 6px;
+}
+.session-tools input {
+  flex: 1;
+  min-width: 0;
+}
+.session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+.session-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--gp-white);
+  border: 1px solid var(--gp-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.session-item:hover {
+  background: var(--gp-blue-soft);
+}
+.session-item.selected {
+  border-color: var(--gp-blue);
+  background: var(--gp-blue-soft);
+}
+.session-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.session-item-subject {
+  font-size: 13px;
+  color: var(--gp-grey);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.saved-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--gp-blue-soft);
+}
+.saved-summary {
+  margin: 0 0 8px;
+}
+.saved-summary dt {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gp-grey);
+  margin-top: 8px;
+}
+.saved-summary dd {
+  margin: 2px 0 0;
+}
+@media (max-width: 1000px) {
+  .live-layout {
+    flex-direction: column;
+  }
+  .session-sidebar,
+  .session-sidebar.open,
+  .session-sidebar.closed {
+    position: static;
+    width: 100%;
+    max-height: 60vh;
+    align-items: stretch;
+  }
+}

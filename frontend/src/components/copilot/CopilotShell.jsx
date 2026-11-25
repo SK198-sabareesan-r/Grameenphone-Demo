@@ -12,12 +12,12 @@ export default function CopilotShell({ call }) {
       <div className="card-head">
         <h2>AI Copilot</h2>
         <span className={`pill ${live ? "pill-ok" : ""}`}>
-          {live ? "Listening" : call.ended ? "Call ended" : "Waiting for a call"}
+          {live ? "Listening" : call.readOnly ? "Saved session" : call.ended ? "Call ended" : "Waiting for a call"}
         </span>
       </div>
       <CustomerSection call={call} />
       <AnswerSection call={call} />
-      <ActionsSection items={call.suggestions} />
+      <ActionsSection items={call.suggestions} readOnly={call.readOnly} />
       <SignalsSection mood={call.mood} compliance={call.compliance} />
       <p className="muted small">The agent decides. Copilot only suggests.</p>
     </div>

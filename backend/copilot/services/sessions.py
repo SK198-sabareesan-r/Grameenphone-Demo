@@ -101,6 +101,10 @@ class CallSession:
             "caller_number": self.caller_number or None,  # the number the call came from
             "identified_at": self.identified_at,
             "identity_confirmed": self.identity_confirmed,
+            "card": self.card(),  # the full customer card as the agent saw it, for session history
+            "mood": self.mood,
+            "status": self.status,
+            "agent_mode": self.agent_mode,
             "current_location": self.current_location,
             "started_at": self.started_at,
             "ended_at": self.ended_at,

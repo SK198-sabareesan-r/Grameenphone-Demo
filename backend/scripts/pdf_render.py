@@ -10,21 +10,39 @@ from pathlib import Path
 
 from scripts.page_expand import expand_page
 
-NAV_TIMEOUT_MS = 60_000
+NAV_TIMEOUT_MS = 90_000
+IDLE_WAIT_MS = 15_000
 MIN_TEXT_CHARS = 200
 BLOCKED_STATUSES = {401, 403, 429}
 ALLOWED_HOST_SUFFIX = "grameenphone.com"
 
 # Removes menus, footers, pop-ups and floating widgets. Done before anything is opened, so a menu is never expanded.
-CLEAN_JS = """
+CLEAN_JS = r"""
 () => {
   const kill = (el) => el && el.remove();
   document.querySelectorAll('nav, footer, dialog, [role="navigation"], [role="dialog"], [role="banner"]')
     .forEach(kill);
-  document.querySelectorAll('[class*="footer" i], [id*="footer" i], [class*="survey" i], [class*="share-" i]').forEach((el) => {
+  document.querySelectorAll('[class*="footer" i], [id*="footer" i], [class*="survey" i]').forEach((el) => {
     if (el !== document.body && !el.querySelector('h1') && !el.querySelector('main, article')) kill(el);
   });
-  document.querySelectorAll('header').forEach((h) => { if (!h.querySelector('h1')) kill(h); });
+  // The footer's class names are hashed, so find it by its copyright line. Climb out of it only while the parent adds
+  // almost nothing (then the parent is still just the footer), and never remove a block that is a large part of the
+  // page: losing the footer text is harmless, losing page content is not.
+  const total = (document.body.innerText || '').length;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const marks = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (/©\s*\d{4}/.test(n.nodeValue)) marks.push(n.parentElement);
+  }
+  marks.forEach((start) => {
+    let top = start;
+    while (top.parentElement && top.parentElement !== document.body && !top.parentElement.querySelector('h1, main, article')
+           && (top.parentElement.innerText || '').length <= (top.innerText || '').length + 60) {
+      top = top.parentElement;
+    }
+    const size = (top.innerText || '').length;
+    if (top !== document.body && !top.querySelector('h1, main, article') && size < 1500 && size < total * 0.4) kill(top);
+  });  document.querySelectorAll('header').forEach((h) => { if (!h.querySelector('h1')) kill(h); });
   for (const el of Array.from(document.body.querySelectorAll('*'))) {
     const pos = getComputedStyle(el).position;
     if ((pos === 'fixed' || pos === 'sticky') && !el.querySelector('h1')) kill(el);
@@ -124,7 +142,11 @@ class PdfRenderer:
             context.close()
 
     def _render(self, page, info: dict, out_path: Path, retrieved: str) -> RenderResult:
-        response = page.goto(info["url"], wait_until="networkidle", timeout=NAV_TIMEOUT_MS)
+        response = page.goto(info["url"], wait_until="load", timeout=NAV_TIMEOUT_MS)
+        try:
+            page.wait_for_load_state("networkidle", timeout=IDLE_WAIT_MS)
+        except Exception:
+            pass  # a page that keeps polling never goes idle. What has loaded is enough.
         http = response.status if response else None
         if http in BLOCKED_STATUSES:
             return RenderResult(status="blocked", http_status=http, final_url=page.url)
@@ -136,8 +158,10 @@ class PdfRenderer:
             return RenderResult(status="off_site", http_status=http, final_url=page.url)
         page.evaluate(SCROLL_JS)
         page.emulate_media(media="screen")
+        raw_chars = page.evaluate("document.body.innerText.length")
         page.evaluate(CLEAN_JS)
-        report = expand_page(page)  # open tabs, accordions, Load more and View details before printing
+        report = expand_page(page)
+        report.chars_raw = raw_chars  # open tabs, accordions, Load more and View details before printing
         chars = page.evaluate(
             LABEL_JS, {"title": info["title"], "url": info["url"], "retrieved": retrieved}
         )

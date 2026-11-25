@@ -1,5 +1,0 @@
-2026-11-25 18:20:13,972 INFO [1/2] error    english/internet-packages
-2026-11-25 18:21:26,090 INFO [2/2] error    english/sim-replacement
-2026-11-25 18:21:26,452 INFO Done. error=2
-2026-11-25 18:21:26,457 INFO   not rendered: english/internet-packages                     error Page.goto: Timeout 60000ms exceeded.
-2026-11-25 18:21:26,457 INFO   not rendered: english/sim-replacement                       error Page.goto: Timeout 60000ms exceeded.
