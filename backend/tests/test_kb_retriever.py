@@ -1,9 +1,16 @@
-"""Knowledge Base retrieval: grouping of chunks, and the fall back to the local articles."""
+"""Knowledge Base retrieval: it is the only source when it is configured, and it never falls back to local files."""
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from config.settings import Settings
-from copilot.services.kb_retriever import KnowledgeRetriever, articles_from_results, fuse
+from copilot.services.kb_retriever import (
+    INDEXED_LANGUAGES,
+    KnowledgeRetriever,
+    KnowledgeUnavailable,
+    articles_from_results,
+)
 from copilot.services.knowledge import KnowledgeBase
 
 DATA = Path(__file__).resolve().parents[1] / "data"
@@ -12,7 +19,7 @@ DATA = Path(__file__).resolve().parents[1] / "data"
 def chunk(doc_id: str, text: str, title: str = "T", kind: str = "public") -> dict:
     return {
         "content": {"text": text},
-        "metadata": {"doc_id": doc_id, "title": title, "type": kind, "source_url": f"https://x/{doc_id}"},
+        "metadata": {"doc_id": doc_id, "title": title, "type": kind, "source_url": f"https://x/{doc_id}", "language": "en"},
         "location": {"s3Location": {"uri": f"s3://b/{doc_id}"}},
     }
 
@@ -34,6 +41,11 @@ def make(kb_id: str = "KB1", bedrock: FakeBedrock | None = None, **extra) -> Kno
                               KnowledgeBase(DATA / "knowledge" / "articles"))
 
 
+def search(retriever: KnowledgeRetriever, query: str = "roaming", limit: int = 4):
+    return asyncio.run(retriever.search(query, limit))
+
+
+# ---- grouping ----
 def test_chunks_of_one_document_are_merged_in_best_first_order():
     results = [chunk("a", "first"), chunk("b", "other", kind="mock"), chunk("a", "second")]
     articles = articles_from_results(results, limit=4)
@@ -52,13 +64,35 @@ def test_limit_applies_to_documents():
     assert len(articles_from_results(results, limit=3)) == 3
 
 
-def test_without_a_kb_id_the_local_articles_answer():
+def test_a_chunk_that_is_not_an_uploaded_knowledge_document_is_left_out():
+    call_record = {"content": {"text": "customer: amar net kaj korche na"}, "metadata": {"x-amz-bedrock-kb-source-uri": "s3://b/copilot/calls/1.json"},
+                   "location": {"s3Location": {"uri": "s3://b/copilot/calls/1.json"}}}
+    assert [a.id for a in articles_from_results([call_record, chunk("a", "x")], limit=4)] == ["a"]
+    assert articles_from_results([call_record], limit=4) == []
+
+
+# ---- the Knowledge Base is the only source ----
+def test_without_a_kb_id_the_local_articles_answer_and_the_status_says_so():
     retriever = make(kb_id="")
-    found = asyncio.run(retriever.search("roaming activate"))
-    assert found and retriever.status()["backend"] == "local_articles"
+    assert search(retriever, "roaming activate")
+    assert retriever.status() == {"backend": "local_articles", "available": True, "last_error": ""}
 
 
-def test_a_kb_failure_falls_back_to_local_and_pauses_the_kb():
+def test_only_the_knowledge_base_results_are_returned_never_local_articles():
+    retriever = make()
+    retriever._retrieve = lambda text: [chunk("campaign-faq", "unrelated")]
+    found = search(retriever, "SIM hariye gese, ki korbo")  # the local keyword search would have found sim-replacement
+    assert [a.id for a in found] == ["campaign-faq"]
+
+
+def test_nothing_found_in_the_knowledge_base_is_an_empty_list_not_a_local_answer():
+    retriever = make()
+    retriever._retrieve = lambda text: []
+    assert search(retriever, "roaming activate") == []
+    assert retriever.status()["available"] is True
+
+
+def test_a_kb_failure_raises_pauses_the_kb_and_never_answers_locally():
     retriever = make()
     calls = []
 
@@ -67,40 +101,64 @@ def test_a_kb_failure_falls_back_to_local_and_pauses_the_kb():
         raise RuntimeError("expired token")
 
     retriever._retrieve = boom
-    first = asyncio.run(retriever.search("roaming activate"))
-    asyncio.run(retriever.search("roaming activate"))
-    assert first, "local search should still answer"
-    assert len(calls) == 1, "the KB is skipped while it is paused"
+    with pytest.raises(KnowledgeUnavailable, match="expired token"):
+        search(retriever, "roaming activate")
+    with pytest.raises(KnowledgeUnavailable):  # paused: no second call, still no local answer
+        search(retriever, "roaming activate")
+    assert len(calls) == 1
     status = retriever.status()
-    assert status["fallback_active"] and "expired token" in status["last_error"]
+    assert status["available"] is False and "expired token" in status["last_error"]
 
 
+def test_the_knowledge_base_is_tried_again_after_the_pause():
+    retriever = make()
+    retriever._retrieve = lambda text: (_ for _ in ()).throw(RuntimeError("down"))
+    with pytest.raises(KnowledgeUnavailable):
+        search(retriever)
+    retriever._skip_until = 0.0  # the pause is over
+    retriever._retrieve = lambda text: [chunk("roaming-basics", "x")]
+    assert [a.id for a in search(retriever)] == ["roaming-basics"]
+    assert retriever.status() == {"backend": "bedrock_kb", "available": True, "last_error": ""}
+
+
+def test_a_search_that_takes_too_long_raises():
+    import time
+    retriever = make(bedrock_kb_timeout_s=0.05)
+    retriever._retrieve = lambda text: time.sleep(0.5) or []
+    with pytest.raises(KnowledgeUnavailable):
+        search(retriever)
+
+
+def test_the_search_asks_only_for_uploaded_documents_by_language():
+    sent = {}
+
+    class Client:
+        def retrieve(self, **kwargs):
+            sent.update(kwargs)
+            return {"retrievalResults": []}
+
+    retriever = make()
+    retriever._client = Client()
+    search(retriever)
+    config = sent["retrievalConfiguration"]["vectorSearchConfiguration"]
+    assert config["filter"] == {"in": {"key": "language", "value": INDEXED_LANGUAGES}} and INDEXED_LANGUAGES == ["en", "bn"]
+    assert sent["knowledgeBaseId"] == "KB1" and config["numberOfResults"] == 5
+
+
+# ---- the optional rewrite ----
 def test_kb_results_are_used_and_the_query_is_rewritten():
     bedrock = FakeBedrock({"query": "how to activate roaming"})
     retriever = make(bedrock=bedrock, bedrock_kb_rewrite_query=True)
     seen = []
     retriever._retrieve = lambda text: seen.append(text) or [chunk("roaming-activation", "Dial *121#", "Roaming")]
-    found = asyncio.run(retriever.search("roaming kemne chalu korbo"))
+    found = search(retriever, "roaming kemne chalu korbo")
     assert seen == ["how to activate roaming"]
     assert found[0].id == "roaming-activation"
-    assert not retriever.status()["fallback_active"]
 
 
 def test_the_original_sentence_is_used_when_the_rewrite_fails():
     retriever = make(bedrock=FakeBedrock(error=RuntimeError("throttled")), bedrock_kb_rewrite_query=True)
     seen = []
     retriever._retrieve = lambda text: seen.append(text) or [chunk("a", "x")]
-    asyncio.run(retriever.search("net kaj korche na"))
+    search(retriever, "net kaj korche na")
     assert seen == ["net kaj korche na"]
-
-
-def test_fusion_puts_documents_found_by_both_lists_first():
-    a, b, c = (articles_from_results([chunk(i, i)], 1)[0] for i in 'abc')
-    assert [x.id for x in fuse([a, b], [c, b], limit=3)] == ['b', 'a', 'c']
-
-
-def test_the_keyword_list_rescues_a_miss_of_the_vector_search():
-    retriever = make()
-    retriever._retrieve = lambda text: [chunk('campaign-faq', 'unrelated')]
-    found = asyncio.run(retriever.search('SIM hariye gese, ki korbo', 4))
-    assert 'sim-replacement' in [x.id for x in found]

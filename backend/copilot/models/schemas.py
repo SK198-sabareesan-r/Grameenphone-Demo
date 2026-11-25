@@ -24,8 +24,15 @@ class TranscriptRequest(BaseModel):
         return normalize_speaker(value)
 
 
+class ChatTurn(BaseModel):
+    """One earlier message of the Ask Copilot chat. The browser keeps the chat and sends the recent turns."""
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
 class AskRequest(BaseModel):
     question: str = Field(min_length=2, max_length=500)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=12)
 
 
 class TicketRequest(BaseModel):

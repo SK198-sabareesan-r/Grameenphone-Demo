@@ -14,7 +14,7 @@ from config.settings import Settings
 from copilot.repo.base import DataUnavailable, Repo
 from copilot.services.bedrock import BedrockClient
 from copilot.services.hub import PanelHub
-from copilot.services.kb_retriever import KnowledgeRetriever
+from copilot.services.kb_retriever import KnowledgeRetriever, KnowledgeUnavailable
 from copilot.services.knowledge import Article
 from copilot.services.sessions import CallSession, Turn
 from copilot.utils.helpers import load_json, read_text, render_prompt
@@ -100,13 +100,21 @@ class LiveAssist:
     async def _handle(self, session: CallSession, turn: Turn) -> dict:
         await self._hub.broadcast("answer.pending", {"turn_id": turn.id, "question": turn.text})
         # The knowledge search and the packs and GP Centres read are independent, so they run together.
-        articles, (packs, centres) = await asyncio.gather(
-            self._kb.search(self._query(session, turn), self._limit), self._reference(session)
+        (articles, kb_down), (packs, centres) = await asyncio.gather(
+            self._search(self._query(session, turn)), self._reference(session)
         )
-        entry = await self._generate(session, turn, articles, packs, centres)
+        entry = await self._generate(session, turn, articles, packs, centres, kb_down)
         session.set_answer(entry)
         await self._hub.broadcast("answer", entry)
         return entry
+
+    async def _search(self, query: str) -> tuple[list[Article], bool]:
+        """The matching articles, and whether the Knowledge Base could not be searched. The lookup carries on without it."""
+        try:
+            return await self._kb.search(query, self._limit), False
+        except KnowledgeUnavailable as error:
+            log.warning("The lookup has no knowledge: %s", error)
+            return [], True
 
     async def _reference(self, session: CallSession) -> tuple[list[dict], list[dict]]:
         """The pack catalog, and the GP Centres in the customer's registered area and current location."""
@@ -130,7 +138,8 @@ class LiveAssist:
         return f"{previous} {turn.text}".strip()
 
     async def _generate(
-        self, session: CallSession, turn: Turn, articles: list[Article], packs: list[dict], centres: list[dict]
+        self, session: CallSession, turn: Turn, articles: list[Article], packs: list[dict], centres: list[dict],
+        kb_down: bool = False,
     ) -> dict:
         prompt = render_prompt(
             self._template,
@@ -140,7 +149,7 @@ class LiveAssist:
             network=session.network_view(),
             packs=self._packs_block(packs),
             centres=self._centres_block(centres),
-            articles=self._articles_block(articles),
+            articles=self._articles_block(articles, kb_down),
             transcript=session.transcript_text(last=8),
             question=turn.text,
         )
@@ -178,7 +187,9 @@ class LiveAssist:
         )
 
     @staticmethod
-    def _articles_block(articles: list[Article]) -> str:
+    def _articles_block(articles: list[Article], kb_down: bool = False) -> str:
+        if kb_down:
+            return "(the knowledge base could not be reached. Do not answer from memory: say the knowledge is not available right now and use only the customer card and the network status.)"
         if not articles:
             return "(no matching article)"
         return "\n\n".join(f"[{a.id}] {a.title} (type: {a.type})\n{a.body}" for a in articles)

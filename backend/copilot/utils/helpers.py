@@ -18,8 +18,8 @@ def extract_json(text: str) -> dict:
     """Pull the first complete JSON object out of a model reply.
 
     Text before or after the object is ignored, and so is a second object. A brace in the text before the
-    real object does not stop the search: each "{" is tried in turn."""
-    decoder = json.JSONDecoder()
+    real object does not stop the search: each "{" is tried in turn. A line break inside a string is accepted."""
+    decoder = json.JSONDecoder(strict=False)  # a model may put a real line break inside a Markdown string
     position = text.find("{")
     while position >= 0:
         try:

@@ -8,8 +8,8 @@ from config.settings import Settings
 from copilot.repo.base import DataUnavailable
 from copilot.repo.files import FileRepo
 from copilot.services.assist import NOT_FOUND, LiveAssist
-from copilot.services.kb_retriever import KnowledgeRetriever
-from copilot.services.kb_retriever import KnowledgeRetriever
+from copilot.services.kb_retriever import KnowledgeRetriever, KnowledgeUnavailable
+from copilot.services.kb_retriever import KnowledgeRetriever, KnowledgeUnavailable
 from copilot.services.knowledge import KnowledgeBase
 from copilot.services.sessions import CallSession
 
@@ -233,3 +233,18 @@ def test_the_lookup_still_runs_when_packs_and_centres_cannot_be_read():
 
     assert entry["needs_lookup"] is False and len(bedrock.prompts) == 1
     assert "(none)" in bedrock.prompts[0]
+
+
+def test_the_lookup_carries_on_with_the_card_when_the_knowledge_base_cannot_be_reached():
+    bedrock = FakeBedrock({"needs_lookup": True, "answer": "The knowledge is not available right now.", "sources": [], "used_customer_data": True,
+                           "confidence": "low", "clarifying_question": None})
+    assist, _ = make(bedrock)
+
+    async def down(query, limit=4):
+        raise KnowledgeUnavailable("expired token")
+
+    assist._kb.search = down
+    entry = asyncio.run(assist.run_now(session_with(("customer", "Amar internet balance koto ache?"))))
+    assert entry["needs_lookup"] is True and entry["sources"] == [] and entry["mode"] == "ai"
+    assert "knowledge base could not be reached" in bedrock.prompts[0]
+    assert "Do not answer from memory" in bedrock.prompts[0]

@@ -1,6 +1,5 @@
 import ActionsSection from "./ActionsSection";
 import AnswerSection from "./AnswerSection";
-import AskSection from "./AskSection";
 import CustomerSection from "./CustomerSection";
 import SignalsSection from "./SignalsSection";
 
@@ -20,7 +19,6 @@ export default function CopilotShell({ call }) {
       <AnswerSection call={call} />
       <ActionsSection items={call.suggestions} />
       <SignalsSection mood={call.mood} compliance={call.compliance} />
-      <AskSection />
       <p className="muted small">The agent decides. Copilot only suggests.</p>
     </div>
   );

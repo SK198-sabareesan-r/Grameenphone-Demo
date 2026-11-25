@@ -66,7 +66,8 @@ export const api = {
   analyze: () => request(API.analyze, { method: "POST" }),
   runAnswer: () => request(API.answers, { method: "POST" }),
   generateSummary: () => request(API.summary, { method: "POST" }),
-  ask: (question) => request(API.ask, { method: "POST", body: { question } }),
+  // history: the last few chat messages as { role, content }, so a follow-up question can be understood.
+  ask: (question, history = []) => request(API.ask, { method: "POST", body: { question, history } }),
   useSuggestion: (id) => request(API.useSuggestion(id), { method: "POST" }),
   ticketCategories: () => request(API.ticketCategories),
   ticketStatuses: () => request(API.ticketStatuses),

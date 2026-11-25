@@ -1,9 +1,15 @@
 """Knowledge search for the live lookup and Ask Copilot.
 
-Uses the Bedrock Knowledge Base when BEDROCK_KB_ID is set. If it is not set, or a call fails or times out,
-the local keyword search over the article files answers instead, and the Knowledge Base is skipped for
-DATA_RETRY_AFTER_S seconds so a bad connection does not slow every lookup.
+When BEDROCK_KB_ID is set, the Bedrock Knowledge Base is the only source of knowledge. Nothing from the local
+article files is mixed in, and nothing answers in its place: if the Knowledge Base cannot be reached the search
+raises KnowledgeUnavailable, and the caller says so instead of answering from somewhere else. After a failure
+the Knowledge Base is skipped for DATA_RETRY_AFTER_S seconds, so a bad connection does not slow every question.
 
+Only documents that were uploaded with a language tag (en or bn, see scripts/upload_kb.py) are searched. The
+data source covers a whole bucket, and anything else in it, such as saved call records, must never be returned
+as knowledge.
+
+When BEDROCK_KB_ID is empty (development without AWS) the local article files are used, and status() says so.
 Chunks of the same document are merged into one Article, so the callers see the same shape either way.
 """
 import asyncio
@@ -20,9 +26,15 @@ from copilot.utils.aws import aws_session
 from copilot.utils.helpers import read_text, render_prompt
 
 log = logging.getLogger(__name__)
-
 _FRONT_MATTER = re.compile(r"\A\s*---\n.*?\n---\s*", re.DOTALL)
 REWRITE_SYSTEM = "You rewrite a telecom customer's sentence into a search query and reply with JSON only."
+# The language tags that scripts/upload_kb.py puts in each document's metadata sidecar.
+INDEXED_LANGUAGES = ["en", "bn"]
+SEARCH_FILTER = {"in": {"key": "language", "value": INDEXED_LANGUAGES}}
+
+
+class KnowledgeUnavailable(Exception):
+    """The Knowledge Base could not be searched (no network, expired credentials, a timeout)."""
 
 
 def _strip_front_matter(text: str) -> str:
@@ -45,28 +57,14 @@ def _article_from_chunks(doc_id: str, chunks: list[dict]) -> Article:
 
 
 def articles_from_results(results: list[dict], limit: int) -> list[Article]:
-    """Group retrieved chunks by document, keeping the order of the best chunk of each."""
+    """Group retrieved chunks by document, keeping the order of the best chunk of each.
+    A chunk without a doc_id did not come from an uploaded knowledge document, so it is left out."""
     groups: dict[str, list[dict]] = {}
     for chunk in results:
-        meta = chunk.get("metadata", {})
-        doc_id = str(meta.get("doc_id") or chunk.get("location", {}).get("s3Location", {}).get("uri", ""))
+        doc_id = str(chunk.get("metadata", {}).get("doc_id") or "")
         if doc_id:
             groups.setdefault(doc_id, []).append(chunk)
     return [_article_from_chunks(doc_id, chunks) for doc_id, chunks in list(groups.items())[:limit]]
-
-
-def fuse(semantic: list[Article], keyword: list[Article], limit: int, k: int = 3) -> list[Article]:
-    """Merge the two ranked lists (reciprocal rank fusion), so a Banglish sentence that the vector search
-    misses can still be found by the keyword list, at no extra call. Documents found by both come first.
-    The Knowledge Base text is kept when both lists have the document."""
-    scores: dict[str, float] = {}
-    chosen: dict[str, Article] = {}
-    for ranked in (semantic, keyword):
-        for rank, article in enumerate(ranked):
-            scores[article.id] = scores.get(article.id, 0.0) + 1.0 / (k + rank)
-            chosen.setdefault(article.id, article)
-    order = sorted(scores, key=lambda i: scores[i], reverse=True)
-    return [chosen[i] for i in order[:limit]]
 
 
 class KnowledgeRetriever:
@@ -79,10 +77,11 @@ class KnowledgeRetriever:
         self._rewrite_template = read_text(settings.data_dir / "prompts" / "kb_query.md")
 
     def status(self) -> dict:
+        """Where knowledge comes from, and whether the Knowledge Base can be used right now."""
         using_kb = bool(self._kb_id)
         return {
             "backend": "bedrock_kb" if using_kb else "local_articles",
-            "fallback_active": using_kb and time.monotonic() < self._skip_until,
+            "available": not (using_kb and time.monotonic() < self._skip_until),
             "last_error": self._last_error,
         }
 
@@ -90,20 +89,24 @@ class KnowledgeRetriever:
         return self._local.get(article_id)
 
     async def search(self, query: str, limit: int = 4) -> list[Article]:
-        if not self._kb_id or time.monotonic() < self._skip_until:
+        """The best matching documents, best first. Raises KnowledgeUnavailable when the Knowledge Base is set
+        but cannot be searched."""
+        if not self._kb_id:
             return self._local.search(query, limit)
+        if time.monotonic() < self._skip_until:
+            raise KnowledgeUnavailable(self._last_error or "The Knowledge Base is paused after an error")
         try:
             text = await self._rewrite(query) if self._settings.bedrock_kb_rewrite_query else query
             results = await asyncio.wait_for(
                 asyncio.to_thread(self._retrieve, text), self._settings.bedrock_kb_timeout_s
             )
-            self._last_error = ""
-            return fuse(articles_from_results(results, limit), self._local.search(query, limit), limit)
         except Exception as error:
             self._last_error = f"{type(error).__name__}: {str(error)[:200]}"
             self._skip_until = time.monotonic() + self._settings.data_retry_after_s
-            log.warning("Knowledge Base search failed, using the local articles: %s", self._last_error)
-            return self._local.search(query, limit)
+            log.warning("Knowledge Base search failed: %s", self._last_error)
+            raise KnowledgeUnavailable(self._last_error) from error
+        self._last_error = ""
+        return articles_from_results(results, limit)
 
     async def _rewrite(self, query: str) -> str:
         """Ask the model for an English search query. The original sentence is used if this fails."""
@@ -138,7 +141,10 @@ class KnowledgeRetriever:
             knowledgeBaseId=self._kb_id,
             retrievalQuery={"text": text},
             retrievalConfiguration={
-                "vectorSearchConfiguration": {"numberOfResults": self._settings.bedrock_kb_top_k}
+                "vectorSearchConfiguration": {
+                    "numberOfResults": self._settings.bedrock_kb_top_k,
+                    "filter": SEARCH_FILTER,
+                }
             },
         )
         return reply["retrievalResults"]

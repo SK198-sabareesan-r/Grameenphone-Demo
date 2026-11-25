@@ -36,3 +36,8 @@ def test_nested_objects():
 def test_no_object_raises(text):
     with pytest.raises(ValueError):
         extract_json(text)
+
+
+def test_a_real_line_break_inside_a_string_is_accepted():
+    text = '{"answer": "1. **Step one**' + chr(10) + '2. Step two", "sources": []}'
+    assert extract_json(text) == {"answer": "1. **Step one**" + chr(10) + "2. Step two", "sources": []}

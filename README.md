@@ -131,7 +131,7 @@ All routes need a signed-in agent except where marked public.
 | Tickets | GET | `/api/tickets/categories` | Categories |
 | Tickets | GET | `/api/tickets` | Tickets in the mock system |
 | Tickets | POST | `/api/tickets` | Create a ticket |
-| Knowledge | POST | `/api/ask` | Ask Copilot, answers with sources |
+| Knowledge | POST | `/api/ask` | Ask Copilot. Body: `question` and optional `history` (up to 12 earlier chat messages as role and content). Answers in Markdown, with sources, and `searched_for` when the chat changed the question |
 | Knowledge | GET | `/api/knowledge/articles` | Articles in the knowledge pack |
 | Identity | GET | `/api/identity` | Whether a customer is identified, the caller ID, and the card |
 | Identity | POST | `/api/identity` | Typed fallback. On a call the number is picked up from the transcript and loads the card by itself |
@@ -152,7 +152,7 @@ The agent types nothing to start the Copilot. Everything is read from the live t
 1. **Caller ID, then the mobile number.** When a call reaches the human agent, the caller ID is looked up at once and the customer card appears, marked **Not confirmed yet**. The customer's network status shows with it. The number is confirmed in one of two ways: the customer says it on the call (or says yes after the agent reads it back), which is picked up automatically, or the agent confirms or types it in the box on the card. A different number loads that customer instead. Until the number is confirmed, the answer tells the agent to confirm it first and does not quote balance, bill or ticket details. Bangladesh numbers have 11 digits (`01XXXXXXXXX`) and Indian numbers have 10 (`9500799295`, also read as `+91...`). If no customer has the number, the panel says so and keeps listening. Speech from an unverified speaker is never used. `Not this customer` hides the card and ignores that number until another is heard. The panel has no box for starting a test call or typing transcript lines: calls reach it from the voice agent. The routes `POST /api/calls` (start a call with a caller ID) and `POST /api/transcript` (add a line) stay in the API for tests and scripts.
 2. **Location.** The card shows the network status of the registered area straight away, read from the 
 etwork-areas table. When the customer reports a network problem, the panel asks the agent to confirm the area. The customer's reply sets the location: a place name, or a yes after the agent named the area. The status of that area is read from the table and the answer is looked up again.
-3. **One panel.** The customer card, location, answer, next best action, mood, compliance and Ask Copilot are sections of one AI Copilot card.
+3. **One panel.** The customer card, location, answer, next best action, mood and compliance are sections of one AI Copilot card. Ask Copilot is the bot button in the bottom right corner (see below).
 
 The code is in \copilot/services/capture.py\ and \spoken_number.py\; the panel is \rontend/src/components/copilot/\.
 
@@ -172,3 +172,21 @@ The bucket holds personal data. Create it once with `python -m scripts.create_tr
 ## Tickets tab
 
 The **Tickets** tab lists every ticket (`GET /api/tickets`). Filters: mobile number (full or part, any format such as `+91...`), ticket number (full or part), a **From** and **To** date (calendar pickers, inclusive, Bangladesh dates) and the status (open, in progress, resolved, closed or all). Without a status filter only **open** tickets are listed. Click a ticket to see its problem, what was checked, the outcome and the follow-up.
+
+## Ask Copilot chat
+
+The bot button in the bottom right corner opens the Ask Copilot chat on every tab. It answers from the approved knowledge, with the source, and writes the answer in Markdown (lists, bold, code, tables).
+
+- **Memory.** The chat remembers what was said earlier, so a follow-up such as "ar eta koto din cholbe?" is understood. Each question is sent with the last 6 messages, and the question is first rewritten into a standalone English question using them. That rewritten question is what is searched, and it is shown under the answer as "Searched for". A first question has no rewrite step, so it is a little faster.
+- **Short-lived.** The chat lives in the browser page only. It is not stored in the browser storage or on the server, so refreshing the page clears it. Closing the window or changing tab keeps it. "New chat" clears it at once.
+- **Where.** `frontend/src/components/chat/` (the window and the button), `frontend/src/state/chatMemory.js` (what is remembered and sent), `backend/copilot/services/ask.py` (the rewrite and the answer), and the prompts `backend/data/prompts/ask_condense.md` and `ask_copilot.md`.
+
+## Where the knowledge comes from
+
+With `BEDROCK_KB_ID` set, the Bedrock Knowledge Base is the **only** source of knowledge, for Ask Copilot and for the live answer panel. Local article files are not mixed in and do not answer when the Knowledge Base fails.
+
+- **Only uploaded documents are searched.** The search is filtered to documents tagged `language` = `en` or `bn` (the metadata that `scripts/upload_kb.py` writes). Anything else that sits in the same bucket, such as saved call records, is never returned as knowledge.
+- **If the Knowledge Base cannot be reached** (expired AWS keys, a timeout, a wrong ID), Ask Copilot says "The knowledge base cannot be reached right now" (`"unavailable": true`) and gives no answer. The live answer panel carries on with the customer card and the network status only, and says the knowledge is not available. The Knowledge Base is retried after `DATA_RETRY_AFTER_S` seconds.
+- **`GET /api/health`** shows `knowledge`: `backend` (`bedrock_kb` or `local_articles`), `available`, and `last_error`.
+- **Without `BEDROCK_KB_ID`** (development with no AWS) the local article files in `backend/data/knowledge/articles` are used, and `backend` says `local_articles`.
+- **Sources.** An answer lists only the documents it used. An answer that says "not in the knowledge" lists none.

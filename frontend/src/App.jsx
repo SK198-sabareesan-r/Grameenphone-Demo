@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Header from "./components/Header";
+import AskChat from "./components/chat/AskChat";
 import LiveCallPage from "./pages/LiveCallPage";
 import DashboardPage from "./pages/DashboardPage";
 import TicketsPage from "./pages/TicketsPage";
@@ -27,6 +28,8 @@ function Console({ auth }) {
         {view === "tickets" && <TicketsPage />}
         {view === "dashboard" && <DashboardPage />}
       </main>
+      {/* Mounted here, not in a page, so the chat keeps its memory when the tab changes. */}
+      <AskChat />
     </div>
   );
 }
