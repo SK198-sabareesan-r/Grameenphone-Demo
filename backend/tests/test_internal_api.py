@@ -154,13 +154,13 @@ def test_speakers_land_in_their_own_context_files(client, settings):
 # ---- lifecycle events ---------------------------------------------------------------------------
 
 
-def test_call_started_resolves_the_customer_and_never_stores_the_phone_number(client, settings):
+def test_call_started_resolves_the_customer_and_keeps_the_original_number_only_in_customer_context(client, settings):
     client.post(C_URL, json=call_event("call_started", data={"from_number": "+8801200000001", "direction": "inbound"}), headers=TOKEN)
     customer = read_json(settings, "customer_context")
     assert customer["customer"]["id"] == customer["customer_id"] == "rahim"
     assert customer["caller_ref"] == "***0001"
-    for name in ("call_events", "customer_context"):
-        assert "+8801200000001" not in json.dumps(read_json(settings, name))
+    assert customer["caller_number"] == "+8801200000001"  # the original number, for the call-transcripts bucket
+    assert "+8801200000001" not in json.dumps(read_json(settings, "call_events"))  # the event log keeps it masked
     assert client.get("/api/calls/current").json()["call"]["agent_mode"] == "ai_agent"
 
 

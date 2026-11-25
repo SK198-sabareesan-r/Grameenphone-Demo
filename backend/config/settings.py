@@ -50,7 +50,10 @@ class Settings(BaseSettings):
     aws_secret_access_key: SecretStr = SecretStr("")
     aws_session_token: SecretStr = SecretStr("")
     s3_bucket: str = ""
-    s3_prefix: str = "copilot/calls"
+    # Call conversations and call records. A private bucket; it holds customers' original mobile numbers.
+    s3_transcript_bucket: str = ""
+    s3_transcript_prefix: str = "calls"  # <prefix>/<mobile number>/<call id>.json, the finished call record
+    s3_live_prefix: str = "live"  # <prefix>/<call id>/<document>.json, voice calls while they are running
     s3_knowledge_prefix: str = "knowledge/pdf"
     dynamodb_table_prefix: str = "gp-copilot-"
     dynamodb_timeout_s: float = 4.0
@@ -95,10 +98,10 @@ class Settings(BaseSettings):
     demo_phone_map: str = ""
     ticket_start_number: int = 10234
 
-    # Where call records and tickets are written. Empty = data/runtime (the default).
-    # Tests point this at a temporary folder so they never touch real runtime data.
+    # Folders for call records, tickets and conversation files. Leave both EMPTY: nothing is then written to the
+    # local disk (conversations go to the call-transcripts bucket, tickets and calls to DynamoDB). Tests set them
+    # to a temporary folder.
     copilot_runtime_dir: str = ""
-    # Where per-call conversation JSON files are written. Empty = data/conversations (git-ignored).
     copilot_conversations_dir: str = ""
 
     @property
@@ -106,20 +109,14 @@ class Settings(BaseSettings):
         return BASE_DIR / "data"
 
     @property
-    def conversations_dir(self) -> Path:
-        path = (
-            Path(self.copilot_conversations_dir)
-            if self.copilot_conversations_dir
-            else self.data_dir / "conversations"
-        )
-        path.mkdir(parents=True, exist_ok=True)
-        return path
+    def conversations_dir(self) -> Path | None:
+        """The folder for conversation files, only when one is set on purpose (tests). None means no local files."""
+        return Path(self.copilot_conversations_dir) if self.copilot_conversations_dir else None
 
     @property
-    def runtime_dir(self) -> Path:
-        path = Path(self.copilot_runtime_dir) if self.copilot_runtime_dir else self.data_dir / "runtime"
-        path.mkdir(parents=True, exist_ok=True)
-        return path
+    def runtime_dir(self) -> Path | None:
+        """The folder for call records and tickets, only when one is set on purpose (tests). None means memory only."""
+        return Path(self.copilot_runtime_dir) if self.copilot_runtime_dir else None
 
     @property
     def frontend_dist_dir(self) -> Path:

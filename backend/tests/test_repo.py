@@ -190,7 +190,7 @@ def test_file_repo_keeps_seeded_data_and_remembers_what_the_app_wrote(tmp_path):
 
     asyncio.run(again.clear_runtime())
     assert asyncio.run(again.list_calls()) == []
-    assert [t["ticket_id"] for t in asyncio.run(again.list_tickets())] == ["TKT-10101", "TKT-10144", "TKT-10190"]
+    assert [t["ticket_id"] for t in asyncio.run(again.list_tickets())] == ["TKT-10101", "TKT-10144", "TKT-10190", "TKT-10150", "TKT-10187", "TKT-10098", "TKT-10122"]
 
 
 def test_file_repo_returns_copies_so_callers_cannot_change_the_stored_data(tmp_path):

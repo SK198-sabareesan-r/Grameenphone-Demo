@@ -134,6 +134,7 @@ class LiveAssist:
     ) -> dict:
         prompt = render_prompt(
             self._template,
+            number_confirmed="yes" if session.identity_confirmed else "no",
             identity_verified="yes" if session.compliance.get("verify_identity") == "green" else "no",
             customer=session.customer,
             network=session.network_view(),

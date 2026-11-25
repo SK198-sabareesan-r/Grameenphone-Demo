@@ -15,11 +15,22 @@ def read_text(path: Path) -> str:
 
 
 def extract_json(text: str) -> dict:
-    """Pull the first JSON object out of a model reply."""
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end <= start:
-        raise ValueError("No JSON object found in model output")
-    return json.loads(text[start : end + 1])
+    """Pull the first complete JSON object out of a model reply.
+
+    Text before or after the object is ignored, and so is a second object. A brace in the text before the
+    real object does not stop the search: each "{" is tried in turn."""
+    decoder = json.JSONDecoder()
+    position = text.find("{")
+    while position >= 0:
+        try:
+            value, _ = decoder.raw_decode(text[position:])
+        except json.JSONDecodeError:
+            position = text.find("{", position + 1)
+            continue
+        if isinstance(value, dict):
+            return value
+        position = text.find("{", position + 1)
+    raise ValueError("No JSON object found in model output")
 
 
 def render_prompt(template: str, **values: Any) -> str:

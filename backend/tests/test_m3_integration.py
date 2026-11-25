@@ -171,10 +171,12 @@ async def test_the_whole_call_is_stored_in_json_and_shown_on_the_panel(wired):
         "human_agent_disconnected", "call_ended",
     ]
 
-    # nothing sensitive was written anywhere
+    # the customer's own number is kept as it was (in customer_context only). No token or agent phone is stored.
     everything = json.dumps(stored)
-    for secret in (CALLER, HUMAN_PHONE, INTERNAL_TOKEN):
+    for secret in (HUMAN_PHONE, INTERNAL_TOKEN):
         assert secret not in everything
+    assert customer['caller_number'] == CALLER
+    assert CALLER not in json.dumps({k: v for k, v in stored.items() if k != 'customer_context'})
 
     # the panel saw the same call, live
     statuses = [d["status"] for d in wired.events.of("call.status")]

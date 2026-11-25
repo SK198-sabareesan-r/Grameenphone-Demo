@@ -1,9 +1,10 @@
 """Reads the call as it happens and fills in what the agent would otherwise type.
 
 Two things are picked up from the live transcript:
-* The customer's mobile number. When one is heard (said by the customer or read back by the agent) the
-  customer card is loaded from the customers table. If no customer has that number, the panel says so and
-  keeps listening, so the agent only has to ask again by voice.
+* The customer's mobile number. The card may already be on screen from the caller ID, marked "not confirmed".
+  The customer saying that number confirms it, and so does the customer's "yes" after the agent reads it
+  back. A different number loads that customer's card instead. If no customer has the number, the panel
+  says so and keeps listening, so the agent only has to ask again by voice.
 * The customer's location. After a network problem is reported, the panel asks the agent to confirm the
   area on the card. The customer's reply sets the location: a place name, or "yes" after the agent named
   the area. The status for that area is then read from the network-areas table.
@@ -57,10 +58,16 @@ class AutoCapture:
     async def _number(self, session: CallSession, turn: Turn) -> None:
         heard = mobile_numbers(turn.text)
         if not heard:
+            await self._reply(session, turn)
             return
         number = normalize_number(heard[-1])  # the last one said is the one being confirmed
-        if number == session.ignored_number or self._already_handled(session, number):
+        if number == session.ignored_number:
             return
+        if self._shown(session, number):
+            await self._same_number(session, turn, number)
+            return
+        if session.heard and session.heard["number"] == number and not session.heard["found"]:
+            return  # the same unknown number again: already reported
         previous = (session.customer or {}).get("id")
         try:
             card = await self._identity.confirm(session, number)
@@ -75,11 +82,34 @@ class AutoCapture:
             await self._refresh(session)
 
     @staticmethod
-    def _already_handled(session: CallSession, number: str) -> bool:
-        if session.customer and normalize_number(session.customer["msisdn"]) == number:
-            return True
-        return bool(session.heard and session.heard["number"] == number and not session.heard["found"])
+    def _shown(session: CallSession, number: str) -> bool:
+        """The number of the card that is on screen (for example from the caller ID)."""
+        return bool(session.customer and normalize_number(session.customer["msisdn"]) == number)
 
+    async def _same_number(self, session: CallSession, turn: Turn, number: str) -> None:
+        """The number of the card on screen was said. The customer saying it confirms it. The agent reading it
+        out waits for the customer's yes."""
+        if session.identity_confirmed:
+            return
+        if turn.speaker == CUSTOMER:
+            await self._confirm_shown(session, number, turn.speaker)
+        elif turn.speaker in (HUMAN_AGENT, AI_AGENT):
+            session.pending_confirm = True
+
+    async def _reply(self, session: CallSession, turn: Turn) -> None:
+        """The customer's yes or no to a number the agent read back."""
+        if not session.pending_confirm or turn.speaker != CUSTOMER:
+            return
+        if self._says(turn.text, self._affirm):
+            await self._confirm_shown(session, normalize_number(session.customer["msisdn"]), turn.speaker)
+        elif self._says(turn.text, self._negate):
+            session.pending_confirm = False
+
+    async def _confirm_shown(self, session: CallSession, number: str, speaker: str) -> None:
+        await self._identity.mark_confirmed(session)
+        session.heard = {"number": number, "found": True, "speaker": speaker}
+        await self._hub.broadcast("identity.heard", session.heard)
+        await self._refresh(session)
     # ---- location ----
     async def _place(self, session: CallSession, turn: Turn) -> None:
         if not (session.location_prompt or session.current_location is not None):

@@ -28,6 +28,8 @@ class CallSession:
     heard: dict | None = None  # the last mobile number heard on the call: {number, found, speaker}
     ignored_number: str | None = None  # a number the agent rejected ("not this customer"); not loaded again
     pending_area: str | None = None  # an area the agent named, waiting for the customer to say yes or no
+    identity_confirmed: bool = False  # the customer confirmed the mobile number. False while the card comes only from the caller ID
+    pending_confirm: bool = False  # the agent read the number back, waiting for the customer to say yes or no
     identified_at: float | None = None
     started_at: float = field(default_factory=time.time)
     ended_at: float | None = None
@@ -51,13 +53,16 @@ class CallSession:
         self.turns.append(turn)
         return turn
 
-    def identify(self, customer: dict, registered_status: dict) -> None:
+    def identify(self, customer: dict, registered_status: dict, confirmed: bool = True) -> None:
         self.customer = customer
         self.registered_status = registered_status
         self.identified_at = time.time()
+        self.identity_confirmed = confirmed
+        self.pending_confirm = False
 
     def clear_identity(self) -> None:
         self.customer = self.registered_status = self.identified_at = self.heard = None
+        self.identity_confirmed = self.pending_confirm = False
 
     def set_location(self, status: dict) -> None:
         self.current_location = status
@@ -85,13 +90,17 @@ class CallSession:
         """The customer card. None until the agent has confirmed the mobile number."""
         if self.customer is None:
             return None
-        return {"customer": self.customer, "registered_status": self.registered_status}
+        return {"customer": self.customer, "registered_status": self.registered_status, "confirmed": self.identity_confirmed}
 
     def to_record(self) -> dict:
         return {
             "call_id": self.call_sid,  # the key of the calls table
             "customer_id": (self.customer or {}).get("id"),
+            "customer_name": (self.customer or {}).get("name"),
+            "mobile_number": (self.customer or {}).get("msisdn"),  # the customer's original number
+            "caller_number": self.caller_number or None,  # the number the call came from
             "identified_at": self.identified_at,
+            "identity_confirmed": self.identity_confirmed,
             "current_location": self.current_location,
             "started_at": self.started_at,
             "ended_at": self.ended_at,

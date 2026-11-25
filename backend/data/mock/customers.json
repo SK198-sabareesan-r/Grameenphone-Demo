@@ -75,5 +75,34 @@
     "recent_recharges": [{"amount_bdt": 199, "date": "22 Nov"}],
     "open_tickets": [],
     "usage_pattern": "Reported a lost SIM."
+  },
+  {
+    "_note": "The customer who calls in the demo (9500799295). One record that carries the data for every scenario CP1 to CP11, so the whole demo runs on this number. Mock data, not a live GP system.",
+    "id": "abdul-rahim",
+    "name": "Abdul Rahim",
+    "msisdn": "9500799295",
+    "type": "Prepaid",
+    "tier": "Standard",
+    "area": "Mirpur",
+    "balance_bdt": 120,
+    "pack": {"name": "25 GB, 30 days", "data_left_gb": 18, "valid_until": "05 Dec"},
+    "previous_pack": {"name": "8 GB + 150 minutes, 7 days", "expired_on": "24 Nov", "data_left_gb": 5},
+    "recent_recharges": [
+      {"amount_bdt": 100, "date": "22 Nov"},
+      {"amount_bdt": 199, "date": "17 Nov"}
+    ],
+    "charges": [
+      {"item": "Value-added service: Cricket Alert (sample)", "amount_bdt": 100, "date": "21 Nov"}
+    ],
+    "roaming": "Not activated",
+    "open_tickets": [
+      {"id": "TKT-10150", "topic": "Slow internet", "age": "6 days"},
+      {"id": "TKT-10187", "topic": "Slow internet", "age": "3 days"}
+    ],
+    "earlier_tickets": [
+      {"id": "TKT-10098", "topic": "Pack not activated", "category": "Pack", "age": "14 days", "status": "closed"},
+      {"id": "TKT-10122", "topic": "Slow internet", "category": "Network", "age": "10 days", "status": "resolved"}
+    ],
+    "usage_pattern": "Used up the pack before validity ended in each of the last 3 months. Did not knowingly activate any value-added service."
   }
 ]

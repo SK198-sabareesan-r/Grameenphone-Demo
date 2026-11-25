@@ -50,6 +50,11 @@ class IdentityRequest(BaseModel):
     mobile_number: str = Field(min_length=6, max_length=24)
 
 
+class CallStartRequest(BaseModel):
+    """Start a call from the panel without telephony, as if it came from this caller ID."""
+    caller_number: str = Field(default="", max_length=24)
+
+
 class LocationRequest(BaseModel):
     """Where the customer says they are right now."""
 

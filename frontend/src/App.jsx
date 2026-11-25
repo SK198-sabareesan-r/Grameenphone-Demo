@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import DemoControls from "./components/DemoControls";
 import LiveCallPage from "./pages/LiveCallPage";
 import DashboardPage from "./pages/DashboardPage";
+import TicketsPage from "./pages/TicketsPage";
 import LoginPage from "./pages/LoginPage";
 import { useAuth } from "./hooks/useAuth";
 import { usePanelStream } from "./hooks/usePanelStream";
@@ -23,7 +24,9 @@ function Console({ auth }) {
         onSignOut={auth.signOut}
       />
       <main className="page">
-        {view === "live" ? <LiveCallPage call={call} /> : <DashboardPage />}
+        {view === "live" && <LiveCallPage call={call} />}
+        {view === "tickets" && <TicketsPage />}
+        {view === "dashboard" && <DashboardPage />}
       </main>
       {auth.demoControls && <DemoControls />}
     </div>

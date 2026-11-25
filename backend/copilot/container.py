@@ -13,6 +13,7 @@ from copilot.services.auth import AuthService
 from copilot.services.bedrock import BedrockClient
 from copilot.services.capture import AutoCapture
 from copilot.services.compliance import ComplianceEngine
+from copilot.services.blob_store import MemoryBlobs, S3Blobs
 from copilot.services.conversation_store import ConversationStore
 from copilot.services.dashboard import DashboardService
 from copilot.services.hub import PanelHub
@@ -62,6 +63,16 @@ class Container:
     conversations: ConversationStore
 
 
+def build_conversation_store(settings: Settings) -> ConversationStore:
+    """Where the live conversation documents of voice calls are kept. Never the local disk in normal use."""
+    if settings.s3_transcript_bucket:
+        return ConversationStore(S3Blobs(settings, settings.s3_transcript_bucket, settings.s3_live_prefix))
+    if settings.conversations_dir:  # set on purpose, by the tests
+        return ConversationStore(settings.conversations_dir)
+    log.warning("S3_TRANSCRIPT_BUCKET is not set: voice-call conversations are kept in memory and lost on restart.")
+    return ConversationStore(MemoryBlobs())
+
+
 def build_container(settings: Settings, *, bedrock: BedrockClient | None = None) -> Container:
     """Build every service. `bedrock` lets tests inject a fake client; None builds the real one."""
     missing = settings.missing(*REQUIRED_SETTINGS)
@@ -101,5 +112,5 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
         storage=storage,
         dashboard=DashboardService(settings, storage),
         auth=AuthService(settings),
-        conversations=ConversationStore(settings.conversations_dir),
+        conversations=build_conversation_store(settings),
     )

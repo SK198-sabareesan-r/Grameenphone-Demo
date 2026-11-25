@@ -66,7 +66,8 @@ class CallPipeline:
             raise ValueError(f"unknown call source {source!r}")
         c = self._c
         self.source = source
-        # No customer is loaded here. The agent confirms the mobile number first (see identity_routes).
+        # No customer is loaded yet. For a voice call the card is looked up from the caller ID when the call
+        # reaches the human agent (set_status). It stays "not confirmed" until the number is confirmed.
         self.session = c.registry.start(
             CallSession(
                 call_sid=call_sid or f"local-{uuid.uuid4().hex[:8]}",
@@ -77,6 +78,8 @@ class CallPipeline:
             pipeline=self,
         )
         await c.hub.broadcast("call.started", session_view(c, self.session))
+        if source == "typed" and caller:  # a typed test call counts as handled by the human agent from the start
+            await c.identity.preload(self.session)
 
     async def set_status(self, status: str, agent_mode: str | None = None) -> None:
         """Voice calls: record the call status and who is handling the call, and tell the panel."""
@@ -86,6 +89,8 @@ class CallPipeline:
         session.status = status
         if agent_mode:
             session.agent_mode = agent_mode
+        if agent_mode == "human_agent":  # the call reached the human agent: look the caller up now, so the card is ready
+            await self._c.identity.preload(session)
         await self._c.hub.broadcast(
             "call.status",
             {"call_sid": session.call_sid, "status": status, "agent_mode": session.agent_mode},

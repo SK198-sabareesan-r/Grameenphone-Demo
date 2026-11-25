@@ -8,14 +8,21 @@ _STORAGE_ONLY = ("mobile_number", "source", "team_phone")
 
 
 def normalize_number(value: str) -> str:
-    """One format for every mobile number: digits only, 01XXXXXXXXX. Accepts +880..., 880... and 1XXXXXXXXX."""
+    """One format for every mobile number, digits only.
+
+    Bangladesh numbers are 11 digits, 01XXXXXXXXX. Accepts +880..., 880... and 1XXXXXXXXX.
+    Indian numbers (the demo caller) are 10 digits, [6-9]XXXXXXXXX. Accepts +91..., 91... and a leading 0.
+    """
     digits = re.sub(r"\D", "", value or "")
     if digits.startswith("880") and len(digits) == 13:
         return "0" + digits[3:]
     if len(digits) == 10 and digits.startswith("1"):
         return "0" + digits
+    if digits.startswith("91") and len(digits) == 12 and digits[2] in "6789":
+        return digits[2:]
+    if len(digits) == 11 and digits[0] == "0" and digits[1] in "6789":
+        return digits[1:]
     return digits
-
 
 def is_plausible_number(value: str) -> bool:
     return MIN_DIGITS <= len(re.sub(r"\D", "", value or "")) <= MAX_DIGITS

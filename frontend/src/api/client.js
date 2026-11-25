@@ -62,6 +62,7 @@ export const api = {
     request(API.login, { method: "POST", body: { username, password }, auth: false }),
   me: () => request(API.me),
   wsTicket: () => request(API.wsTicket, { method: "POST" }),
+  startCall: (callerNumber) => request(API.calls, { method: "POST", body: { caller_number: callerNumber } }),
   endCall: () => request(API.endCall, { method: "POST" }),
   addTranscriptLine: (speaker, text) =>
     request(API.transcript, { method: "POST", body: { speaker, text } }),
@@ -71,6 +72,17 @@ export const api = {
   ask: (question) => request(API.ask, { method: "POST", body: { question } }),
   useSuggestion: (id) => request(API.useSuggestion(id), { method: "POST" }),
   ticketCategories: () => request(API.ticketCategories),
+  ticketStatuses: () => request(API.ticketStatuses),
+  // filters: { mobile, ticket, fromDate, toDate, status }. Empty ones are left out.
+  listTickets: ({ mobile, ticket, fromDate, toDate, status }) => {
+    const query = new URLSearchParams();
+    if (mobile) query.set("mobile", mobile);
+    if (ticket) query.set("ticket", ticket);
+    if (fromDate) query.set("from_date", fromDate);
+    if (toDate) query.set("to_date", toDate);
+    if (status) query.set("status", status);
+    return request(`${API.tickets}?${query}`);
+  },
   createTicket: (ticket) => request(API.tickets, { method: "POST", body: ticket }),
   dashboard: () => request(API.dashboard),
   confirmIdentity: (mobileNumber) =>

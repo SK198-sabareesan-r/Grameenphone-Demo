@@ -1,28 +1,30 @@
-"""Local JSON persistence for live voice calls (POC only; PostgreSQL replaces it later).
+"""Persistence for live voice calls (POC only; PostgreSQL replaces it later).
 
-One folder per call under data/conversations/{call_id}/:
-
+One group of five JSON documents per call:
     transcript.json          every transcript event (partial and final), ordered by sequence_number
     customer_context.json    customer id and details, intent, references to the customer's turns
     ai_agent_context.json    AI-agent messages, actions, hand-off reason and time
     human_agent_context.json human-agent reference, transcript references, notes, hold/resume, hand-off times
     call_events.json         call lifecycle events in chronological order
 
-Rules this module enforces (each is covered by tests/test_conversation_store.py):
+Where they live is decided by the blob store passed in (see build_conversation_store in container.py):
+the call-transcripts S3 bucket in normal use, memory when no bucket is configured, or a local folder
+when a Path is given (tests only). Nothing is written to the local disk in normal use.
 
-* Writes are atomic: a temporary file in the same folder is written, flushed, fsynced and renamed over
-  the target, so a crash never leaves a half-written file.
+Rules this module enforces (each is covered by tests/test_conversation_store.py):
+* Local writes are atomic: a temporary file in the same folder is written, flushed, fsynced and renamed over
+  the target, so a crash never leaves a half-written file. An S3 put replaces the object whole.
 * One asyncio.Lock per call serialises read-modify-write, so concurrent requests cannot overwrite each
   other. The lock is per process: run ONE backend process while this store is in use.
 * An event with an `event_id` that is already stored is a duplicate and is not stored again. A different
   event that reuses a stored `sequence_number` is a conflict. Events are kept sorted by sequence_number
   (transcript) or timestamp (call events), whatever order they arrive in.
-* A missing file starts empty. A file that is not valid JSON is moved aside (`*.corrupt-<time>`), never
-  deleted, and the file starts empty again.
-* call_id is checked against a strict pattern before it is used in a path.
-* Nothing here stores API keys, tokens or full phone numbers. Callers pass masked references only.
+* A missing document starts empty. A document that is not valid JSON is set aside (`*.corrupt-<time>`),
+  never deleted, and the document starts empty again.
+* call_id is checked against a strict pattern before it is used in a key or a path.
+* API keys and tokens are never stored. The customer's phone number is stored as the caller gave it, in the
+  call-transcripts bucket only.
 """
-
 from __future__ import annotations
 
 import asyncio
@@ -112,8 +114,42 @@ def atomic_write_json(path: Path, document: Any) -> None:
         tmp.unlink(missing_ok=True)
 
 
+class LocalBlobs:
+    """Documents as files in one folder per call. For tests only: normal use never writes to the local disk."""
+
+    def __init__(self, root: Path) -> None:
+        self._root = Path(root)
+
+    def call_dir(self, call_id: str) -> Path:
+        return self._root / call_id
+
+    def read(self, call_id: str, name: str) -> dict | None:
+        path = self.call_dir(call_id) / f"{name}.json"
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("not an object")
+            return data
+        except (OSError, ValueError) as exc:
+            aside = path.with_name(f"{path.name}.corrupt-{int(time.time())}")
+            try:
+                os.replace(path, aside)
+            except OSError:
+                pass
+            log.error("conversation_file_corrupt", extra={"file": path.name, "error": type(exc).__name__})
+            return None
+
+    def write(self, call_id: str, name: str, doc: dict) -> None:
+        atomic_write_json(self.call_dir(call_id) / f"{name}.json", doc)
+
+    def exists(self, call_id: str) -> bool:
+        return self.call_dir(call_id).is_dir()
+
+
 class _Call:
-    """In-memory copy of one call's documents plus its lock. The files are the durable copy."""
+    """In-memory copy of one call's documents plus its lock. The blob store holds the durable copy."""
 
     def __init__(self) -> None:
         self.lock = asyncio.Lock()
@@ -123,14 +159,15 @@ class _Call:
 
 
 class ConversationStore:
-    def __init__(self, root: Path) -> None:
-        self._root = Path(root)
+    def __init__(self, blobs: Any) -> None:
+        """`blobs` is a blob store (S3Blobs, MemoryBlobs), or a folder path, which means local files (tests)."""
+        self._blobs = LocalBlobs(Path(blobs)) if isinstance(blobs, (str, Path)) else blobs
         self._calls: dict[str, _Call] = {}
 
     # ---- paths and loading -------------------------------------------------------------------
-
     def call_dir(self, call_id: str) -> Path:
-        return self._root / check_id("call_id", call_id)
+        """The folder of one call. Only the local test store has one."""
+        return self._blobs.call_dir(check_id("call_id", call_id))
 
     def _empty(self, name: str, call_id: str) -> dict:
         base = {"schema_version": SCHEMA_VERSION, "call_id": call_id, "session_id": None, "customer_id": None}
@@ -147,22 +184,8 @@ class ConversationStore:
         return base
 
     def _load_file(self, name: str, call_id: str) -> dict:
-        path = self.call_dir(call_id) / FILE_NAMES[name]
-        if not path.exists():
-            return self._empty(name, call_id)
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict):
-                raise ValueError("not an object")
-            return data
-        except (OSError, ValueError) as exc:
-            aside = path.with_name(f"{path.name}.corrupt-{int(time.time())}")
-            try:
-                os.replace(path, aside)
-            except OSError:
-                pass
-            log.error("conversation_file_corrupt", extra={"file": path.name, "error": type(exc).__name__})
-            return self._empty(name, call_id)
+        data = self._blobs.read(call_id, name)
+        return self._empty(name, call_id) if data is None else data
 
     def _call(self, call_id: str) -> _Call:
         check_id("call_id", call_id)
@@ -173,7 +196,11 @@ class ConversationStore:
 
     async def _doc(self, call: _Call, name: str, call_id: str) -> dict:
         if name not in call.docs:
-            doc = await asyncio.to_thread(self._load_file, name, call_id)
+            try:
+                doc = await asyncio.to_thread(self._load_file, name, call_id)
+            except OSError as exc:
+                log.error("conversation_read_failed", extra={"document": name, "error": type(exc).__name__})
+                raise StorageUnavailable("could not read conversation document") from exc
             call.docs[name] = doc
             if name in (TRANSCRIPT, CALL_EVENTS):
                 call.event_ids[name] = {e.get("event_id") for e in doc.get("events", [])}
@@ -183,17 +210,17 @@ class ConversationStore:
         return call.docs[name]
 
     async def _save(self, call: _Call, call_id: str, name: str, doc: dict) -> None:
-        path = self.call_dir(call_id) / FILE_NAMES[name]
         try:
-            await asyncio.to_thread(atomic_write_json, path, doc)
+            await asyncio.to_thread(self._blobs.write, call_id, name, doc)
         except OSError as exc:
-            # The in-memory copy was already changed. Forget it so the next access reloads the file, which
-            # still holds the last good state: a retry of the same event is then stored, not "duplicate".
+            # The in-memory copy was already changed. Forget it so the next access reloads the stored
+            # document, which still holds the last good state: a retry of the same event is then stored,
+            # not "duplicate".
             call.docs.pop(name, None)
             call.event_ids.pop(name, None)
             if name == TRANSCRIPT:
                 call.sequences = {}
-            log.error("conversation_write_failed", extra={"file": path.name, "error": type(exc).__name__})
+            log.error("conversation_write_failed", extra={"document": name, "error": type(exc).__name__})
             raise StorageUnavailable("could not write conversation file") from exc
 
     def _bind(self, doc: dict, session_id: str | None, customer_id: str | None) -> None:
@@ -286,8 +313,12 @@ class ConversationStore:
 
     async def exists(self, call_id: str) -> bool:
         try:
-            return await asyncio.to_thread(self.call_dir(call_id).is_dir)
+            check_id("call_id", call_id)
         except InvalidIdentifier:
+            return False
+        try:
+            return await asyncio.to_thread(self._blobs.exists, call_id)
+        except OSError:
             return False
 
     async def release(self, call_id: str) -> None:

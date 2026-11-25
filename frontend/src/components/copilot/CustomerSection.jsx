@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api/client";
 import LocationSection from "./LocationSection";
+import NumberEntry from "./NumberEntry";
 
 function Row({ label, children }) {
   return (
@@ -28,16 +29,21 @@ function Waiting({ call }) {
           automatically.
         </p>
       )}
-      {callerNumber && !heard && (
-        <p className="muted small">Caller ID {callerNumber}. It is not used until the number is confirmed on the call.</p>
-      )}
+      <NumberEntry
+        initial={callerNumber}
+        label="Show card"
+        placeholder="Or type the mobile number"
+        hint={callerNumber ? "Pre-filled from the caller ID. Confirm it with the customer." : ""}
+        callActive={active}
+        callEnded={ended}
+      />
     </>
   );
 }
 
 function Card({ call }) {
   const [error, setError] = useState("");
-  const { customer } = call.card;
+  const { customer, confirmed } = call.card;
 
   async function wrongCustomer() {
     setError("");
@@ -57,7 +63,6 @@ function Card({ call }) {
             <strong>{customer.name}</strong>
             <div className="muted small">
               {customer.type} &middot; {customer.tier} &middot; {customer.msisdn}
-              {call.heard?.found && ` \u00b7 heard from the ${call.heard.speaker === "customer" ? "customer" : "agent"}`}
             </div>
           </div>
         </div>
@@ -65,6 +70,26 @@ function Card({ call }) {
           Not this customer
         </button>
       </div>
+      {confirmed ? (
+        <p className="confirm-state">
+          <span className="pill pill-ok">Number confirmed</span>
+        </p>
+      ) : (
+        <div className="confirm-state unconfirmed">
+          <span className="pill pill-warn">Not confirmed yet</span>
+          <p className="small">
+            Found from the caller ID. Ask the customer to say their mobile number. It is picked up automatically,
+            or confirm it here.
+          </p>
+          <NumberEntry
+            initial={customer.msisdn}
+            label="Confirm number"
+            placeholder="Mobile number the customer gave"
+            callActive={call.active}
+            callEnded={call.ended}
+          />
+        </div>
+      )}
       <Row label="Plan">{customer.pack.name}</Row>
       <Row label="Data left">
         {customer.pack.data_left_gb} GB (until {customer.pack.valid_until})

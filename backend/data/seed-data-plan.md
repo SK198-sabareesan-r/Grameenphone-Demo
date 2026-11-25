@@ -38,7 +38,7 @@ All keys are Strings. `name` is a reserved word in DynamoDB expressions, so any 
 
 ### 2.1 `gp-copilot-customers`
 
-Key: `mobile_number`, stored as `01XXXXXXXXX`. The app converts `+880…` input to that form before looking it up.
+Key: `mobile_number`. Bangladesh numbers are stored as `01XXXXXXXXX` (11 digits) and the app converts `+880…` input to that form. Indian numbers are stored as the 10 digits, for example `9500799295`, and `+91…` input is converted to that form.
 
 | Attribute | Meaning |
 |---|---|
@@ -63,6 +63,7 @@ Not stored here: open tickets (they live in `tickets`) and a separate `msisdn` (
 | Karim Hossain (`karim`) | 01200000003 | Prepaid, Standard | Uttara | 10 GB, 30 days, 2 GB left, until 01 Dec | Tk 45 | Tk 100 (18 Nov) | The angry-caller case. Three earlier complaints. |
 | Sumon Ahmed (`sumon`) | 01200000004 | Postpaid, Platinum | Gulshan | Postpaid 40 GB, 22 GB left, until 30 Nov | Tk 0 | none | CP10 roaming. Going to Malaysia next week, roaming not activated. |
 | Mitu Akter (`mitu`) | 01200000005 | Prepaid, Standard | Chattogram | 8 GB, 7 days, 5 GB left, until 29 Nov | Tk 80 | Tk 199 (22 Nov) | CP9 lost SIM. |
+| **Abdul Rahim** (`abdul-rahim`) | **9500799295** | Prepaid, Standard | Mirpur | 25 GB, 30 days, 18 GB left, until 05 Dec | Tk 120 | Tk 100 (22 Nov), Tk 199 (17 Nov) | The demo caller: every scenario CP1 to CP11 on one customer (see below) |
 
 Basis:
 - **Doc:** the five names, Rahim's 25 GB pack with 18 GB left, and Nusrat's 500 to 850 bill with the Tk 100 service charge.
@@ -71,7 +72,7 @@ Basis:
 
 Mobile numbers and team phones:
 - The numbers are invented. The `012` prefix is not used by any mobile operator, so they cannot belong to a real person.
-- A verified team phone counts as that customer's number. List it in `DEMO_PHONE_MAP` (`+8801XXXXXXXXX:rahim`) and run the seed again. That adds an extra item keyed by the team phone, with `team_phone: true` and the same `id`.
+- A verified team phone counts as that customer's number. List it in `DEMO_PHONE_MAP` (`+919500799295:rahim`, or `+8801XXXXXXXXX:rahim`) and run the seed again. That adds an extra item keyed by the team phone, with `team_phone: true` and the same `id`.
 - Dates such as "20 Nov" and "05 Dec" are fixed text, written for the demo date of 26 Nov 2026. Change them if the date moves.
 
 ### 2.2 `gp-copilot-network-areas`
@@ -190,6 +191,24 @@ Key: `area` (partition) and `name` (sort). Used for "the nearest GP Centre (samp
 
 The store-locator page lists no GP Centre for Chattogram, and Mitu (CP9) lives there. The Chattogram row is a labelled placeholder with no real address. Gazipur has no GP Centre on that page either, so it has no row.
 
+### The demo caller, scenario by scenario
+
+The number that calls in the demo is `9500799295` (a 10-digit Indian number; Bangladesh numbers are 11 digits). One record, `abdul-rahim`, holds the data for every scenario, so the whole demo runs on it. All of it is mock data.
+
+| Scenario | Where the data is |
+|---|---|
+| CP1 internet not working | Area Mirpur has a maintenance notice until 6:00 PM (`network-areas`). Two earlier slow-internet tickets (`tickets`). |
+| CP2 extra charge | `charges`: Cricket Alert, Tk 100 on 21 Nov. `usage_pattern`: did not knowingly activate any value-added service. |
+| CP3 right offer | `usage_pattern`: used up the pack early in each of the last 3 months. The 30 GB, 30-day pack is in `packs`. |
+| CP4 compliance | `recent_recharges`: the last recharge is Tk 100 on 22 Nov. This is what the agent checks the customer's answer against. |
+| CP5 repeat complaint | Open tickets TKT-10150 (6 days) and TKT-10187 (3 days). |
+| CP8 unused data | `previous_pack`: 8 GB + 150 minutes, expired 24 Nov with 5 GB left. The sample rule (3 days) then points to 27 Nov. |
+| CP9 lost SIM | Standard tier, so the Tk 300 fee applies. Mirpur GP Centres (samples) are in `gp-centres`. |
+| CP10 going abroad | `roaming`: Not activated. The 10 Days Travel Pack is in `packs`. |
+| CP11 recharge missing | There is no Tk 200 recharge in `recent_recharges`, so the customer's Tk 200 is visibly missing. |
+| CP6, CP7, CP12 | Knowledge base, the ticket and call record the app writes, and the dashboard sample numbers. No per-customer data. |
+
+Dates are fixed text written for the 26 November demo. Move them if the demo date changes.
 ## 3. Which scenario uses what
 
 | CP | Tables read or written | Files and articles |
@@ -243,11 +262,11 @@ Bangla versions are not written yet. Each article carries its source URL, fetch 
 | Suggestion shown: bigger pack or roaming pack (CP3, CP4, CP10) | The suggestion carries the pack's name, price, validity and activation code | packs |
 | Suggestion shown: lost SIM (CP9) | The suggestion carries up to 3 GP Centres per area, for the registered area and the current location | gp-centres |
 | Agent submits the ticket | The next free number (from `TICKET_START_NUMBER`) is saved with a check that it does not already exist. A second ticket created at the same moment takes the next number. | tickets |
-| Call ends, or a ticket is created | The whole call record is saved. A copy goes to S3 only if `S3_BUCKET` is set. | calls |
+| Call ends, or a ticket is created | The whole call record is saved to DynamoDB, and a copy goes to the call-transcripts bucket under the customer's mobile number (`S3_TRANSCRIPT_BUCKET`). | calls |
 | Dashboard | Totals over the saved calls, plus the sample figures | calls, `dashboard_seed.json` |
 | Reset | Deletes the tickets the app created and all calls. Seeded tickets stay. | tickets, calls |
 
-**If DynamoDB cannot be reached** (for example the AWS credentials expired), every read above is answered from the local seed files and every write goes to local files. DynamoDB is tried again after `DATA_RETRY_AFTER_S` seconds. Whatever was written meanwhile is not copied to the tables later. `GET /api/health` shows `fallback_active` and the reason.
+**If DynamoDB cannot be reached** (for example the AWS credentials expired), every read above is answered from the seed data and every write is kept in memory only (nothing is written to the local disk). DynamoDB is tried again after `DATA_RETRY_AFTER_S` seconds. Whatever was written meanwhile is lost on restart and is not copied to the tables later. `GET /api/health` shows `fallback_active` and the reason.
 
 **Speed, measured from a laptop to `ap-south-1`:** one read takes about 31 to 39 ms once connected. The identity-confirm reads together took about 250 ms the first time, which opens the connections, and 50 to 63 ms afterwards. It has not been measured from EC2 or during a call.
 

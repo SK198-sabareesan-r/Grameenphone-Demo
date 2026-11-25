@@ -54,6 +54,12 @@ def test_numbers_are_compared_in_one_format():
     assert is_plausible_number("+8801200000001") and not is_plausible_number("12345")
 
 
+def test_an_indian_ten_digit_number_is_one_format_too():
+    for typed in ["9500799295", "+919500799295", "91 95007 99295", "09500799295", "95007-99295"]:
+        assert normalize_number(typed) == "9500799295", typed
+    assert is_plausible_number("9500799295")
+
+
 def test_customer_is_found_by_number_and_by_team_phone():
     repo, *_ = build()
     assert asyncio.run(repo.get_customer(RAHIM))["id"] == "rahim"
@@ -241,14 +247,14 @@ def _tickets_flow(client):
 
     card = client.post("/api/identity", json={"mobile_number": "01200000003"}).json()["card"]
     assert [t["id"] for t in card["customer"]["open_tickets"]][-2:] == ["TKT-10234", "TKT-10235"]
-    assert len(client.get("/api/tickets").json()["tickets"]) == 5  # 3 seeded + 2 new
+    assert len(client.get("/api/tickets?status=all").json()["tickets"]) == 9  # 7 seeded + 2 new
 
     nobody = client.post("/api/tickets", json={"category": "Other", "subject": "No customer"}).json()
     assert nobody["customer_id"] == "unidentified" and nobody["ticket_id"] == "TKT-10236"
 
     client.post("/api/data/reset")
-    remaining = client.get("/api/tickets").json()["tickets"]
-    assert [t["ticket_id"] for t in remaining] == ["TKT-10101", "TKT-10144", "TKT-10190"]  # seeded ones stay
+    remaining = client.get("/api/tickets?status=all").json()["tickets"]
+    assert sorted(t["ticket_id"] for t in remaining) == ["TKT-10098", "TKT-10101", "TKT-10122", "TKT-10144", "TKT-10150", "TKT-10187", "TKT-10190"]  # seeded ones stay
 
 
 def test_removed_endpoints_stay_removed(client):

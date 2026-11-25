@@ -54,8 +54,8 @@ python -m scripts.seed_dynamodb --dry-run     # show what would be written
 python -m scripts.seed_dynamodb               # write it, then read every item back
 ```
 
-- **If DynamoDB cannot be reached** (for example the AWS credentials expired), the Copilot keeps working from the local seed files. It tries DynamoDB again after `DATA_RETRY_AFTER_S` seconds. Anything written meanwhile stays in the local files only. `GET /api/health` shows `"fallback_active": true` and the reason. Set `DATA_FALLBACK_TO_FILES=false` to fail instead, or `DATA_BACKEND=files` to run without AWS.
-- **Adding a team phone:** put `+8801XXXXXXXXX:rahim` in `DEMO_PHONE_MAP` and run the seed again, so the table has an item for that number.
+- **If DynamoDB cannot be reached** (for example the AWS credentials expired), the Copilot keeps working from the seed data, read-only, and keeps what it writes in memory only (nothing is written to the local disk). It tries DynamoDB again after `DATA_RETRY_AFTER_S` seconds. Anything written meanwhile is lost on restart and is not copied to the tables later. `GET /api/health` shows `"fallback_active": true` and the reason. Set `DATA_FALLBACK_TO_FILES=false` to fail instead, or `DATA_BACKEND=files` to run without AWS.
+- **Adding a team phone:** put `+<number>:<customer_id>` in `DEMO_PHONE_MAP` (for example `+8801711111111:rahim`) and run the seed again, so the table has an item for that number. The demo caller `9500799295` does not need this: it has its own record, Abdul Rahim (`abdul-rahim`), that carries the data for every scenario.
 - The AWS keys are temporary. When they expire, replace the three `AWS_*` values in `backend/config/.env`.
 
 ## Export official pages as PDFs (for Bedrock Data Automation)
@@ -142,15 +142,32 @@ All routes need a signed-in agent except where marked public.
 
 ## Live voice calls (M3)
 
-The voice agent forwards live transcripts and call events to the Copilot, which stores them as JSON under `backend/data/conversations/` (git-ignored) and shows them live. The AI can hand a call to a human agent's phone and keeps assisting in the background. Setup, API, storage limits, hold/resume and speaker attribution: see [M3-LIVE-VOICE.md](M3-LIVE-VOICE.md).
+The voice agent forwards live transcripts and call events to the Copilot, which stores them as JSON in the private call-transcripts bucket (`S3_TRANSCRIPT_BUCKET`, under `live/<call id>/`) and shows them live. The AI can hand a call to a human agent's phone and keeps assisting in the background. Setup, API, storage limits, hold/resume and speaker attribution: see [M3-LIVE-VOICE.md](M3-LIVE-VOICE.md).
 
 ## How the panel fills in by itself
 
 The agent types nothing to start the Copilot. Everything is read from the live transcript:
 
-1. **Mobile number.** When a number is said (digits, Bangla digits, spoken digit words, or in pieces), by the customer or by the agent reading it back, the customer card is loaded from the customers table. If no customer has that number, the panel says so and keeps listening, so the agent only asks again by voice. Speech from an unverified speaker is never used. \Not this customer\ hides the card and ignores that number until another is heard.
+1. **Caller ID, then the mobile number.** When a call reaches the human agent, the caller ID is looked up at once and the customer card appears, marked **Not confirmed yet**. The customer's network status shows with it. The number is confirmed in one of two ways: the customer says it on the call (or says yes after the agent reads it back), which is picked up automatically, or the agent confirms or types it in the box on the card. A different number loads that customer instead. Until the number is confirmed, the answer tells the agent to confirm it first and does not quote balance, bill or ticket details. Bangladesh numbers have 11 digits (`01XXXXXXXXX`) and Indian numbers have 10 (`9500799295`, also read as `+91...`). If no customer has the number, the panel says so and keeps listening. Speech from an unverified speaker is never used. `Not this customer` hides the card and ignores that number until another is heard. A call can also be started from the panel with a caller ID, for testing without telephony (`POST /api/calls`).
 2. **Location.** The card shows the network status of the registered area straight away, read from the 
 etwork-areas table. When the customer reports a network problem, the panel asks the agent to confirm the area. The customer's reply sets the location: a place name, or a yes after the agent named the area. The status of that area is read from the table and the answer is looked up again.
 3. **One panel.** The customer card, location, answer, next best action, mood, compliance and Ask Copilot are sections of one AI Copilot card.
 
 The code is in \copilot/services/capture.py\ and \spoken_number.py\; the panel is \rontend/src/components/copilot/\.
+
+## Where calls and tickets are stored
+
+Nothing is written to the local disk. Leave COPILOT_RUNTIME_DIR and COPILOT_CONVERSATIONS_DIR empty (only the tests set them).
+
+| What | Where |
+|---|---|
+| The finished call: transcript, suggestions, answers, mood, compliance, summary, ticket, and the customer's **original mobile number** | `s3://<S3_TRANSCRIPT_BUCKET>/calls/<mobile number>/<call id>.json`. A call with no known number goes under `unidentified`. |
+| A voice call while it runs (transcript events, call events, customer and agent notes) | `s3://<S3_TRANSCRIPT_BUCKET>/live/<call id>/`, with the original caller number in `customer_context.json` |
+| The same call record, for the dashboard | DynamoDB table `gp-copilot-calls` |
+| Tickets | DynamoDB table `gp-copilot-tickets`, with the customer's mobile number and name |
+
+The bucket holds personal data. Create it once with `python -m scripts.create_transcript_bucket`: it blocks all public access and turns encryption on.
+
+## Tickets tab
+
+The **Tickets** tab lists every ticket (`GET /api/tickets`). Filters: mobile number (full or part, any format such as `+91...`), ticket number (full or part), a **From** and **To** date (calendar pickers, inclusive, Bangladesh dates) and the status (open, in progress, resolved, closed or all). Without a status filter only **open** tickets are listed. Click a ticket to see its problem, what was checked, the outcome and the follow-up.

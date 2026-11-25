@@ -26,7 +26,7 @@ def walk(value):
 def test_expected_tables_and_row_counts():
     data = seed()
     assert {k: len(v) for k, v in data.items()} == {
-        "customers": 5, "network-areas": 7, "tickets": 3, "packs": 5, "gp-centres": 11,
+        "customers": 6, "network-areas": 7, "tickets": 7, "packs": 5, "gp-centres": 11,
     }
     assert "calls" not in data  # written by the app, never seeded
 
@@ -59,13 +59,12 @@ def test_a_team_phone_gets_its_own_copy_of_that_customer():
     copies = [r for r in rows if r.get("team_phone")]
     assert len(copies) == 1  # the unknown customer id is ignored
     assert copies[0]["id"] == "rahim" and copies[0]["mobile_number"] == "01711111111"
-    assert len(rows) == 6
+    assert len(rows) == 7
 
 
-def test_earlier_tickets_belong_to_karim_and_are_dated_relative_to_today():
-    tickets = {t["ticket_id"]: t for t in seed()["tickets"]}
+def test_earlier_tickets_are_dated_relative_to_today():
+    tickets = {t["ticket_id"]: t for t in seed()["tickets"] if t["customer_id"] == "karim"}
     assert set(tickets) == {"TKT-10101", "TKT-10144", "TKT-10190"}
-    assert {t["customer_id"] for t in tickets.values()} == {"karim"}
     assert tickets["TKT-10101"]["created_at"].startswith("2026-11-15")  # 9 days before NOW
     assert tickets["TKT-10190"]["created_at"].startswith("2026-11-22")  # 2 days before NOW
     assert all(t["status"] == "open" and t["category"] == "Network" for t in tickets.values())
@@ -107,3 +106,27 @@ def test_gp_centres_are_real_unless_marked_sample():
         if c["type"] == "public":
             assert c["source_url"].startswith("https://www.grameenphone.com") and c["address"] and c["hours"]
     assert isinstance(Decimal("1"), Decimal)  # keeps the Decimal import meaningful for float parsing checks
+
+
+def test_the_demo_caller_has_the_data_for_every_scenario_in_one_record():
+    data = seed()
+    customer = next(c for c in data["customers"] if c["mobile_number"] == "9500799295")
+    assert customer["name"] == "Abdul Rahim" and customer["type"] == "Prepaid" and customer["area"] == "Mirpur"
+    assert customer["previous_pack"]["data_left_gb"] == 5  # CP8: the expired pack with 5 GB left
+    assert customer["charges"][0]["amount_bdt"] == 100 and "Cricket Alert" in customer["charges"][0]["item"]  # CP2
+    assert customer["roaming"] == "Not activated"  # CP10
+    assert [r["amount_bdt"] for r in customer["recent_recharges"]] == [100, 199]  # CP4, and no Tk 200 for CP11
+    assert "open_tickets" not in customer
+    tickets = [t for t in data["tickets"] if t["customer_id"] == customer["id"]]
+    assert {t["ticket_id"] for t in tickets} == {"TKT-10150", "TKT-10187", "TKT-10098", "TKT-10122"}  # CP5: earlier complaints
+    assert {t["ticket_id"]: t["status"] for t in tickets} == {
+        "TKT-10150": "open", "TKT-10187": "open", "TKT-10098": "closed", "TKT-10122": "resolved"}
+    assert all(t["mobile_number"] == "9500799295" and t["customer_name"] == "Abdul Rahim" for t in tickets)
+    assert "_note" not in customer  # notes in the data file are not stored
+    ids = [t["ticket_id"] for t in data["tickets"]]
+    assert len(ids) == len(set(ids)), "ticket numbers are unique across customers"
+    mirpur = next(a for a in data["network-areas"] if a["area"] == "Mirpur")
+    assert mirpur["notice"]["status"] == "maintenance"  # CP1
+    assert any(c["area"] == "Mirpur" for c in data["gp-centres"])  # CP9
+    pack_ids = {p["pack_id"] for p in data["packs"]}
+    assert {"bundle-30gb-300min-30d", "roaming-travel-10gb-10d"} <= pack_ids  # CP3, CP10

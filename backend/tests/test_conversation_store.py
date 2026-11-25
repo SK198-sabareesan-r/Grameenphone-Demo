@@ -79,7 +79,7 @@ async def test_another_session_for_the_same_call_is_refused(store):
 async def test_unsafe_call_ids_never_reach_the_file_system(store, bad):
     with pytest.raises(cs.InvalidIdentifier):
         await store.add_transcript_event(tev(1, call=bad))
-    assert not (store._root.parent / "evil").exists()
+    assert not (store.call_dir("CALL_1").parent.parent / "evil").exists()
 
 
 async def test_call_events_are_kept_in_chronological_order_even_if_they_arrive_late(store):

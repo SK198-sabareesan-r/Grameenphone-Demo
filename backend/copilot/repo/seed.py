@@ -30,7 +30,7 @@ def customer_items(mock_dir: Path, phone_map: dict[str, str]) -> list[dict]:
     """One item per customer, keyed by mobile number. Open tickets live in the tickets table instead."""
     items, by_id = [], {}
     for customer in _load(mock_dir / "customers.json"):
-        item = {k: v for k, v in customer.items() if k not in ("open_tickets", "msisdn")}
+        item = {k: v for k, v in customer.items() if k not in ("open_tickets", "earlier_tickets", "msisdn") and not k.startswith("_")}
         item["mobile_number"] = normalize_number(customer["msisdn"])
         item["source"] = "mock"
         items.append(item)
@@ -50,26 +50,30 @@ def area_items(mock_dir: Path) -> list[dict]:
     ]
 
 
+def _ticket_item(customer: dict, ticket: dict, status: str, now: datetime) -> dict:
+    days = int(re.match(r"\d+", ticket["age"]).group())
+    return {
+        "customer_id": customer["id"],
+        "ticket_id": ticket["id"],
+        "customer_name": customer["name"],
+        "mobile_number": normalize_number(customer["msisdn"]),  # the customer's own number, for the tickets list
+        "category": ticket.get("category") or TOPIC_CATEGORY.get(ticket["topic"], "Other"),
+        "subject": ticket["topic"],
+        "problem": ticket["topic"],
+        "status": status,
+        "created_at": (now - timedelta(days=days)).isoformat(timespec="seconds"),
+        "source": "seed",
+    }
+
+
 def ticket_items(mock_dir: Path, now: datetime) -> list[dict]:
-    """Earlier complaints from the customer data (Karim's three). Dates are set relative to today."""
+    """Earlier complaints from the customer data. Dates are set relative to today.
+    open_tickets are open. earlier_tickets carry their own status (resolved or closed)."""
     items = []
     for customer in _load(mock_dir / "customers.json"):
-        for ticket in customer.get("open_tickets", []):
-            days = int(re.match(r"\d+", ticket["age"]).group())
-            items.append(
-                {
-                    "customer_id": customer["id"],
-                    "ticket_id": ticket["id"],
-                    "category": TOPIC_CATEGORY.get(ticket["topic"], "Other"),
-                    "subject": ticket["topic"],
-                    "problem": ticket["topic"],
-                    "status": "open",
-                    "created_at": (now - timedelta(days=days)).isoformat(timespec="seconds"),
-                    "source": "seed",
-                }
-            )
+        items += [_ticket_item(customer, t, "open", now) for t in customer.get("open_tickets", [])]
+        items += [_ticket_item(customer, t, t["status"], now) for t in customer.get("earlier_tickets", [])]
     return items
-
 
 def _assert_unique_keys(seed: dict[str, list[dict]]) -> None:
     for short, rows in seed.items():

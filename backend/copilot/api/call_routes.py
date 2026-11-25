@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from copilot.api.deps import get_container, require_user
 from copilot.models.internal_events import NoteIn
+from copilot.models.schemas import CallStartRequest
 from copilot.services import conversation_store as store, voice_calls
 from copilot.services.auth import User
-from copilot.services.pipeline import session_view
+from copilot.services.customers import is_plausible_number
+from copilot.services.pipeline import CallPipeline, session_view
 
 router = APIRouter(prefix="/api", tags=["calls"])
 
@@ -15,6 +17,21 @@ router = APIRouter(prefix="/api", tags=["calls"])
 async def current_call(request: Request) -> dict:
     c = get_container(request)
     return {"call": session_view(c, c.registry.current) if c.registry.current else None}
+
+
+@router.post("/calls", status_code=201)
+async def start_call(body: CallStartRequest, request: Request) -> dict:
+    """Start a call on the panel without telephony. With a caller ID, the matching customer card is shown at
+    once, marked as not confirmed, exactly as for a phone call that reaches the human agent."""
+    c = get_container(request)
+    if c.registry.current and c.registry.current.ended_at is None:
+        raise HTTPException(status_code=409, detail="A call is already on screen. End it first.")
+    caller = body.caller_number.strip()
+    if caller and not is_plausible_number(caller):
+        raise HTTPException(status_code=422, detail="Enter the full mobile number (at least 10 digits)")
+    pipeline = CallPipeline(c)
+    await pipeline.begin(call_sid=None, caller=caller, source="typed")
+    return {"call": session_view(c, pipeline.session)}
 
 
 @router.post("/calls/current/end")

@@ -41,7 +41,7 @@ async def _customer_for(c: Container, caller_number: str | None) -> dict | None:
 
 
 def mask_number(value: str | None) -> str | None:
-    """Keep the last 4 digits only. Full phone numbers are never written to the JSON files."""
+    """Keep the last 4 digits only. Used for the event log; the original number is kept in customer_context."""
     digits = "".join(ch for ch in (value or "") if ch.isdigit())
     return f"***{digits[-4:]}" if digits else None
 
@@ -141,10 +141,10 @@ async def _record_final_in_contexts(c: Container, ev: TranscriptEventIn, custome
 
 async def handle_call_event(c: Container, ev: CallEventIn) -> str:
     data = dict(ev.data)
-    caller_number = data.pop("from_number", None)  # used once to find the customer, never stored
+    caller_number = data.pop("from_number", None)  # kept out of the event log (masked there); the original goes in customer_context
     customer = None
     if ev.type == "call_started":
-        # The caller ID only SUGGESTS who is calling: the panel still waits for the agent to confirm the mobile number
+        # The caller ID only SUGGESTS who is calling: the card is shown, marked not confirmed, once the call reaches the human agent, and the mobile number must still be confirmed
         # (identity_routes). The stored files get the matching customer id so all five files can be joined.
         customer = await _customer_for(c, caller_number)
         if customer:
@@ -177,6 +177,7 @@ async def handle_call_event(c: Container, ev: CallEventIn) -> str:
             # Only id and name, and marked as matched by caller ID, not confirmed by the agent.
             doc["customer"] = {"id": customer["id"], "name": customer.get("name"), "matched_by": "caller_id"} if customer else None
             doc["caller_ref"] = data.get("caller_ref")
+            doc["caller_number"] = caller_number  # the original number, kept in the call-transcripts bucket
 
         await c.conversations.update(cid, store.CUSTOMER, mutate_customer, **kw)
         await c.conversations.bind_customer(cid, ev.session_id, customer_id)

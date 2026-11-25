@@ -106,7 +106,7 @@
 
 /* Transcript */
 .transcript {
-  height: 340px;
+  height: 170px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -702,4 +702,143 @@
 }
 .shell .suggestion {
   margin-bottom: 8px;
+}
+
+/* Typing the customer's number as the second way to identify them. */
+.number-entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.number-entry input {
+  flex: 1 1 160px;
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--gp-border);
+  border-radius: 8px;
+}
+.number-entry .error,
+.number-entry .muted {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* The Copilot panel stays in view and scrolls inside itself, so the whole panel is reachable without moving the page. */
+.col-side {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+}
+
+@media (max-width: 1000px) {
+  .col-side {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+/* The number state on the customer card, and the box that starts a call without telephony. */
+.confirm-state {
+  margin: 8px 0;
+}
+.confirm-state.unconfirmed {
+  padding: 8px 10px;
+  border: 1px solid var(--gp-warn);
+  border-radius: 8px;
+  background: #fffbea;
+}
+.confirm-state.unconfirmed p {
+  margin: 6px 0 0;
+}
+.start-call {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.start-call input {
+  flex: 1 1 200px;
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--gp-border);
+  border-radius: 8px;
+}
+.start-call .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* The Tickets tab: filters on top, a table below. */
+.ticket-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.ticket-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gp-blue-deep);
+}
+.ticket-filters input,
+.ticket-filters select {
+  font: inherit;
+  font-weight: 400;
+  padding: 8px 10px;
+  border: 1px solid var(--gp-border);
+  border-radius: 8px;
+  background: var(--gp-white);
+}
+.ticket-filter-actions {
+  display: flex;
+  gap: 8px;
+}
+.ticket-table-wrap {
+  overflow-x: auto;
+}
+.ticket-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.ticket-table th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--gp-blue-deep);
+  border-bottom: 2px solid var(--gp-border);
+  white-space: nowrap;
+}
+.ticket-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--gp-border);
+  vertical-align: top;
+}
+.ticket-row {
+  cursor: pointer;
+}
+.ticket-row:hover,
+.ticket-row.open {
+  background: var(--gp-blue-soft);
+}
+.ticket-details td {
+  background: var(--gp-surface);
+}
+.ticket-details p {
+  margin: 4px 0;
+}
+.link-button {
+  font: inherit;
+  font-weight: 700;
+  color: var(--gp-blue);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
