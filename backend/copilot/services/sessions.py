@@ -25,6 +25,9 @@ class CallSession:
     registered_status: dict | None = None  # network status at the area registered with that number
     current_location: dict | None = None  # network status where the customer says they are now
     location_prompt: bool = False
+    heard: dict | None = None  # the last mobile number heard on the call: {number, found, speaker}
+    ignored_number: str | None = None  # a number the agent rejected ("not this customer"); not loaded again
+    pending_area: str | None = None  # an area the agent named, waiting for the customer to say yes or no
     identified_at: float | None = None
     started_at: float = field(default_factory=time.time)
     ended_at: float | None = None
@@ -54,7 +57,7 @@ class CallSession:
         self.identified_at = time.time()
 
     def clear_identity(self) -> None:
-        self.customer = self.registered_status = self.identified_at = None
+        self.customer = self.registered_status = self.identified_at = self.heard = None
 
     def set_location(self, status: dict) -> None:
         self.current_location = status

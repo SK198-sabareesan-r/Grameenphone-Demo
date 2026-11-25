@@ -133,7 +133,7 @@ All routes need a signed-in agent except where marked public.
 | Knowledge | POST | `/api/ask` | Ask Copilot, answers with sources |
 | Knowledge | GET | `/api/knowledge/articles` | Articles in the knowledge pack |
 | Identity | GET | `/api/identity` | Whether a customer is identified, the caller ID, and the card |
-| Identity | POST | `/api/identity` | The agent confirms the mobile number. Loads the customer card |
+| Identity | POST | `/api/identity` | Typed fallback. On a call the number is picked up from the transcript and loads the card by itself |
 | Identity | DELETE | `/api/identity` | Wrong customer: hide the card again |
 | Location | GET | `/api/locations` | Areas the agent can pick from |
 | Location | GET | `/api/location` | Registered and current location status |
@@ -143,3 +143,14 @@ All routes need a signed-in agent except where marked public.
 ## Live voice calls (M3)
 
 The voice agent forwards live transcripts and call events to the Copilot, which stores them as JSON under `backend/data/conversations/` (git-ignored) and shows them live. The AI can hand a call to a human agent's phone and keeps assisting in the background. Setup, API, storage limits, hold/resume and speaker attribution: see [M3-LIVE-VOICE.md](M3-LIVE-VOICE.md).
+
+## How the panel fills in by itself
+
+The agent types nothing to start the Copilot. Everything is read from the live transcript:
+
+1. **Mobile number.** When a number is said (digits, Bangla digits, spoken digit words, or in pieces), by the customer or by the agent reading it back, the customer card is loaded from the customers table. If no customer has that number, the panel says so and keeps listening, so the agent only asks again by voice. Speech from an unverified speaker is never used. \Not this customer\ hides the card and ignores that number until another is heard.
+2. **Location.** The card shows the network status of the registered area straight away, read from the 
+etwork-areas table. When the customer reports a network problem, the panel asks the agent to confirm the area. The customer's reply sets the location: a place name, or a yes after the agent named the area. The status of that area is read from the table and the answer is looked up again.
+3. **One panel.** The customer card, location, answer, next best action, mood, compliance and Ask Copilot are sections of one AI Copilot card.
+
+The code is in \copilot/services/capture.py\ and \spoken_number.py\; the panel is \rontend/src/components/copilot/\.

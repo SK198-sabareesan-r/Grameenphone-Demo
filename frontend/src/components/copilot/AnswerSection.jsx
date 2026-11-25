@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { api } from "../api/client";
+import { api } from "../../api/client";
 
 const CONFIDENCE_LABEL = { high: "Clear match", medium: "Partial match", low: "Weak match" };
+const CONFIDENCE_PILL = { high: "ok", medium: "warn", low: "danger" };
 
 function Sources({ sources }) {
   if (!sources.length) return null;
@@ -22,7 +23,7 @@ function AnswerCard({ entry, latest }) {
   const searchOnly = entry.mode === "search_only";
   return (
     <div className={`answer-card ${latest ? "latest" : ""}`}>
-      <p className="answer-question">“{entry.question}”</p>
+      <p className="answer-question">&ldquo;{entry.question}&rdquo;</p>
       {searchOnly ? (
         <p className="muted small">The AI answer is not available. These articles match the question:</p>
       ) : (
@@ -35,7 +36,7 @@ function AnswerCard({ entry, latest }) {
       )}
       <div className="answer-tags">
         {!searchOnly && (
-          <span className={`pill pill-${entry.confidence === "high" ? "ok" : entry.confidence === "medium" ? "warn" : "danger"}`}>
+          <span className={`pill pill-${CONFIDENCE_PILL[entry.confidence] || "danger"}`}>
             {CONFIDENCE_LABEL[entry.confidence]}
           </span>
         )}
@@ -46,10 +47,12 @@ function AnswerCard({ entry, latest }) {
   );
 }
 
-export default function AnswerPanel({ answers, pending, callActive, callEnded }) {
+// The answer to the customer's latest question. It is looked up again by itself when the card or the
+// location becomes known, so the same answer improves on screen.
+export default function AnswerSection({ call }) {
   const [error, setError] = useState("");
-  const latest = answers[answers.length - 1];
-  const earlier = answers.slice(0, -1).reverse();
+  const latest = call.answers[call.answers.length - 1];
+  const earlier = call.answers.slice(0, -1).reverse();
 
   async function lookUpNow() {
     setError("");
@@ -61,19 +64,19 @@ export default function AnswerPanel({ answers, pending, callActive, callEnded })
   }
 
   return (
-    <div className="card">
+    <section className="shell-section">
       <div className="card-head">
-        <h2>Suggested answer</h2>
-        <button className="btn btn-ghost btn-small" onClick={lookUpNow} disabled={!callActive || callEnded}>
+        <p className="section-label">Suggested answer</p>
+        <button className="btn btn-ghost btn-small" onClick={lookUpNow} disabled={!call.active || call.ended}>
           Look up latest
         </button>
       </div>
-      {pending && (
+      {call.answerPending && (
         <p className="looking-up">
-          <span className="spinner" aria-hidden="true" /> Looking up “{pending.question}”…
+          <span className="spinner" aria-hidden="true" /> Looking up &ldquo;{call.answerPending.question}&rdquo;&hellip;
         </p>
       )}
-      {!latest && !pending && (
+      {!latest && !call.answerPending && (
         <p className="empty">When the customer asks something, the answer from the approved knowledge appears here.</p>
       )}
       {latest && <AnswerCard entry={latest} latest />}
@@ -86,7 +89,6 @@ export default function AnswerPanel({ answers, pending, callActive, callEnded })
         </details>
       )}
       {error && <p className="error">{error}</p>}
-      <p className="muted small">The agent decides. Copilot only suggests.</p>
-    </div>
+    </section>
   );
 }

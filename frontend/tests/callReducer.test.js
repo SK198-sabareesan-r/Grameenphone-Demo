@@ -99,3 +99,12 @@ test("formatClock handles a missing time and a real one", () => {
   assert.equal(formatClock(undefined), "");
   assert.match(formatClock(1_700_000_000), /\d{1,2}:\d{2}:\d{2}/);
 });
+
+test("a heard mobile number is kept, and cleared when the card is cleared", () => {
+  let state = callReducer(initialCallState, { type: "call.started", data: { call_sid: "c1", ended: false, turns: [], mood: initialCallState.mood, compliance: [], suggestions: [], card: null } });
+  assert.equal(state.heard, null);
+  state = callReducer(state, { type: "identity.heard", data: { number: "01299999999", found: false, speaker: "customer" } });
+  assert.deepEqual(state.heard, { number: "01299999999", found: false, speaker: "customer" });
+  state = callReducer(state, { type: "card", data: null });
+  assert.equal(state.heard, null);
+});

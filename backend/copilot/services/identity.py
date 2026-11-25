@@ -31,11 +31,14 @@ class IdentityService:
             self._repo.list_open_tickets(item["id"]), self._areas.status(item["area"])
         )
         session.identify(customer_view(item, tickets, datetime.now(timezone.utc)), status)
+        session.ignored_number = None
         card = session.card()
         await self._hub.broadcast("card", card)
         return card
 
     async def clear(self, session: CallSession) -> None:
         """The agent picked the wrong customer: hide the card again."""
+        if session.customer:
+            session.ignored_number = normalize_number(session.customer["msisdn"])
         session.clear_identity()
         await self._hub.broadcast("card", None)
