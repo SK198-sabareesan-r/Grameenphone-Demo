@@ -42,7 +42,6 @@ app/
     llm/             LLM interface and Amazon Bedrock client
     sarvam/          Realtime STT, TTS, diagnostics, speech check
     voice/           Call state, media stream handler, audio consumers, playback, track routing
-  utils/             Reserved, currently empty
 config/              .env (git-ignored) and .env.example
 scripts/             Development tools (see below)
 tests/               Automated tests (no network, no provider calls)

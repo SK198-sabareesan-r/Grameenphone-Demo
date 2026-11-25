@@ -27,6 +27,7 @@ from app.publishers.pipeline import PipelineCallListener, PublisherSubscriber, T
 from app.publishers.copilot_forwarder import CopilotCallListener, CopilotEventForwarder
 from app.publishers.transcripts import LoggingTranscriptPublisher, TranscriptPublisher
 from app.services.voice.handoff import HandoffService
+from app.services.conversation.knowledge import KnowledgeLookup
 from app.services.sarvam.errors import SarvamConfigError
 from app.services.voice.dev_capture import build_dev_capture
 from app.services.voice.sarvam_stt_sink import SarvamSttSinkFactory
@@ -51,6 +52,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     pipeline = app.state.transcript_pipeline
     await pipeline.shutdown(app.state.settings.transcript_drain_timeout_s + 1.0)
     await app.state.copilot.aclose()  # after the pipeline: its last events are in the forwarder by now
+    knowledge = getattr(app.state, "knowledge", None)
+    if knowledge is not None:
+        await knowledge.aclose()
     tts = app.state.conversation_tts
     if tts is not None and hasattr(tts, "aclose"):
         await tts.aclose()
@@ -93,6 +97,13 @@ def _install_conversation(
             raise SarvamConfigError("AI_CONVERSATION_ENABLED requires SARVAM_API_KEY (Sarvam TTS).")
         tts = SarvamTtsClient(settings)
     app.state.conversation_tts = tts
+    knowledge = None
+    if settings.ai_knowledge_enabled and app.state.copilot.enabled:
+        knowledge = KnowledgeLookup(settings)
+        logger.info("ai_knowledge_enabled", extra={"url": settings.copilot_knowledge_url})
+    else:
+        logger.warning("ai_knowledge_disabled: AI replies use the model's own knowledge only")
+    app.state.knowledge = knowledge
     manager = app.state.conversation = ConversationManager(
         llm=llm,
         tts=tts,
@@ -107,6 +118,7 @@ def _install_conversation(
         resolution=app.state.resolution,
         unresolved_handoff=app.state.handoff.unresolved_trigger,
         on_resolution_event=app.state.copilot.emit_call_event,
+        knowledge=knowledge,
     )
     app.state.call_manager.add_listener(manager)  # added after PipelineCallListener: its session opens first
     app.state.transcript_pipeline.add_global_subscriber(manager, "conversation")

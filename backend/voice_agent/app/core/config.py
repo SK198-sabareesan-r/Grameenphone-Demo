@@ -141,6 +141,9 @@ class Settings(BaseModel):
     # Lifecycle events go to the sibling route .../calls/events (see copilot_calls_webhook_url).
     copilot_transcript_webhook_url: str = Field(default="")
     copilot_forward_timeout_s: float = 5.0
+    # AI replies use the Copilot's approved-knowledge search (Bedrock Knowledge Base). Needs the URL above.
+    ai_knowledge_enabled: bool = True
+    ai_knowledge_timeout_s: float = 4.0
     copilot_forward_max_attempts: int = 6  # per non-partial event; partials get 2
     copilot_forward_backoff_s: float = 0.5  # doubles after each failed attempt
     copilot_forward_max_backoff_s: float = 8.0
@@ -215,6 +218,12 @@ class Settings(BaseModel):
         url = self.copilot_transcript_webhook_url.strip().rstrip("/")
         suffix = "/transcripts/events"
         return (url[: -len(suffix)] if url.endswith(suffix) else url) + "/calls/events"
+
+    @property
+    def copilot_knowledge_url(self) -> str:
+        url = self.copilot_transcript_webhook_url.strip().rstrip("/")
+        suffix = "/transcripts/events"
+        return (url[: -len(suffix)] if url.endswith(suffix) else url) + "/knowledge/search"
 
     @property
     def handoff_phrase_list(self) -> list[str]:
@@ -318,6 +327,8 @@ class Settings(BaseModel):
             public_base_url=get("PUBLIC_BASE_URL").rstrip("/"),
             copilot_transcript_webhook_url=get("COPILOT_TRANSCRIPT_WEBHOOK_URL"),
             copilot_forward_timeout_s=float(get("COPILOT_FORWARD_TIMEOUT_S", "5")),
+            ai_knowledge_enabled=get("AI_KNOWLEDGE_ENABLED", "true").lower() in ("1", "true", "yes"),
+            ai_knowledge_timeout_s=float(get("AI_KNOWLEDGE_TIMEOUT_S", "4")),
             copilot_forward_max_attempts=int(get("COPILOT_FORWARD_MAX_ATTEMPTS", "6")),
             copilot_forward_backoff_s=float(get("COPILOT_FORWARD_BACKOFF_S", "0.5")),
             copilot_forward_max_backoff_s=float(get("COPILOT_FORWARD_MAX_BACKOFF_S", "8")),

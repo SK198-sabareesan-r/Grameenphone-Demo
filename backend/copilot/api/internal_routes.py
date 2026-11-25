@@ -11,6 +11,7 @@ or the JSON file could not be written (the voice agent retries those).
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel, Field
 
 from copilot.api.deps import get_container, require_internal_token
 from copilot.models.internal_events import CallEventIn, TranscriptEventIn
@@ -30,6 +31,22 @@ def _http_error(exc: store.StoreError) -> HTTPException:
     if isinstance(exc, store.InvalidIdentifier):
         return HTTPException(status_code=422, detail=str(exc))
     return HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "2"})
+
+
+class KnowledgeSearchIn(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=3, ge=1, le=5)
+
+
+@router.post("/knowledge/search")
+async def search_knowledge(body: KnowledgeSearchIn, request: Request) -> dict:
+    """Approved-article search for the voice agent's AI replies (Bedrock Knowledge Base, local fallback)."""
+    articles = await get_container(request).retriever.search(body.query, body.limit)
+    return {
+        "articles": [
+            {"id": a.id, "title": a.title, "type": a.type, "body": a.body[:1500]} for a in articles
+        ]
+    }
 
 
 @router.post("/transcripts/events", status_code=201)

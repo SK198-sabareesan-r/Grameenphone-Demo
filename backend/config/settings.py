@@ -73,22 +73,6 @@ class Settings(BaseSettings):
     bedrock_kb_rewrite_query: bool = False
     bedrock_kb_rewrite_timeout_s: float = 3.0
 
-    # Sarvam
-    sarvam_api_key: SecretStr = SecretStr("")
-    sarvam_stt_url: str = "wss://api.sarvam.ai/speech-to-text-realtime/ws"
-    sarvam_stt_model: str = ""
-    sarvam_stt_language: str = "bn-IN"
-    sarvam_stt_mode: str = "codemix"
-    sarvam_stt_stream_type: str = "fast"
-    sarvam_stt_silence_ms: int = 700
-    sarvam_stt_keyterms: str = ""
-    sarvam_stt_max_retries: int = 3
-    sarvam_tts_url: str = "https://api.sarvam.ai/text-to-speech"
-    sarvam_tts_model: str = ""
-    sarvam_tts_language: str = "bn-IN"
-    sarvam_tts_speaker_agent: str = ""
-    sarvam_tts_speaker_customer: str = ""
-
     # Automatic lookup for each customer sentence
     assist_enabled: bool = True
     assist_timeout_s: float = 8.0
@@ -130,11 +114,6 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
-
-    @property
-    def stt_keyterms(self) -> list[str]:
-        terms = [t.strip() for t in self.sarvam_stt_keyterms.split(",") if t.strip()]
-        return [t[:64] for t in terms][:50]
 
     @property
     def phone_map(self) -> dict[str, str]:

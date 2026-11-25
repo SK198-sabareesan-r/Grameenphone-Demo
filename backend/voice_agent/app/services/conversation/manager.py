@@ -75,6 +75,7 @@ class ConversationManager:
         resolution: ResolutionPolicy | None = None,
         unresolved_handoff: Callable[[str, str], bool] | None = None,
         on_resolution_event: Callable[[str, str, dict], None] | None = None,
+        knowledge: Any = None,  # KnowledgeLookup: approved-article text added to the system prompt per turn
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._llm = llm
@@ -96,6 +97,7 @@ class ConversationManager:
         self._resolution = resolution
         self._unresolved_handoff = unresolved_handoff
         self._on_resolution_event = on_resolution_event
+        self._knowledge = knowledge
         self._clock = clock
         self._calls: dict[str, CallConversation] = {}
         self._greeted: OrderedDict[str, None] = OrderedDict()  # logical calls that already got a greeting
@@ -444,8 +446,14 @@ class ConversationManager:
             logger.info("ai_llm_request_started", extra={"call_id": call_id, "history_messages": len(conv.messages)})
             started = self._clock()
             try:
+                system = SYSTEM_PROMPT
+                if self._knowledge is not None:
+                    question = next((m.content for m in reversed(conv.messages) if m.role == "user"), "")
+                    extra = await self._knowledge.context_for(call_id, question)
+                    if extra:
+                        system = f"{SYSTEM_PROMPT}\n{extra}"
                 result = await asyncio.wait_for(
-                    self._llm.generate(system=SYSTEM_PROMPT, messages=list(conv.messages)), self._llm_timeout_s
+                    self._llm.generate(system=system, messages=list(conv.messages)), self._llm_timeout_s
                 )
                 reply = clean_reply(result.text)
                 if not reply:
