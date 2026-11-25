@@ -11,6 +11,7 @@ from copilot.services.ask import AskCopilot
 from copilot.services.assist import LiveAssist
 from copilot.services.auth import AuthService
 from copilot.services.bedrock import BedrockClient
+from copilot.services.capture import AutoCapture
 from copilot.services.compliance import ComplianceEngine
 from copilot.services.conversation_store import ConversationStore
 from copilot.services.dashboard import DashboardService
@@ -51,6 +52,7 @@ class Container:
     nba: NbaCatalog
     analyzer: TurnAnalyzer
     assist: LiveAssist
+    capture: AutoCapture
     summarizer: CallSummarizer
     ask: AskCopilot
     tickets: TicketService
@@ -74,6 +76,9 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
     retriever = KnowledgeRetriever(settings, bedrock, knowledge)
     nba = NbaCatalog(data / "mock" / "nba_rules.json", repo)
     areas = NetworkAreas(repo)
+    identity = IdentityService(repo, areas, hub)
+    location = LocationService(data / "mock" / "network_keywords.json", areas, hub)
+    assist = LiveAssist(settings, bedrock, retriever, hub, repo)
     return Container(
         settings=settings,
         bedrock=bedrock,
@@ -81,14 +86,15 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
         hub=hub,
         registry=SessionRegistry(),
         areas=areas,
-        identity=IdentityService(repo, areas, hub),
-        location=LocationService(data / "mock" / "network_keywords.json", areas, hub),
+        identity=identity,
+        location=location,
+        capture=AutoCapture(identity, location, areas, assist, hub, data / "mock" / "network_keywords.json"),
         knowledge=knowledge,
         retriever=retriever,
         compliance=ComplianceEngine(data / "mock" / "compliance_rules.json"),
         nba=nba,
         analyzer=TurnAnalyzer(settings, bedrock, nba, hub),
-        assist=LiveAssist(settings, bedrock, retriever, hub, repo),
+        assist=assist,
         summarizer=CallSummarizer(settings, bedrock, hub, storage),
         ask=AskCopilot(settings, bedrock, retriever),
         tickets=TicketService(settings, repo),

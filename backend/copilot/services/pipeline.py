@@ -32,6 +32,7 @@ def session_view(c: Container, session: CallSession) -> dict:
         "caller_number": session.caller_number,
         "current_location": session.current_location,
         "location_prompt": session.location_prompt,
+        "heard": session.heard,
         "mood": session.mood,
         "compliance": c.compliance.view(session.compliance),
         "suggestions": list(session.suggestions.values()),
@@ -122,7 +123,8 @@ class CallPipeline:
         c = self._c
         role, text = turn.speaker, turn.text
         if role == CUSTOMER:
-            await c.location.on_customer_turn(session, text)  # prompts the agent to ask where the customer is
+            await c.location.on_customer_turn(session, text)  # asks the agent to confirm where the customer is
+        await c.capture.on_turn(session, turn)  # picks up the mobile number and the location from the speech
         if role in COMPLIANCE_SPEAKERS and c.compliance.evaluate(session.compliance, role, text):
             await c.hub.broadcast("compliance", c.compliance.view(session.compliance))
         if role in SUGGESTION_SPEAKERS and c.nba.mark_used_by_speech(session, text):

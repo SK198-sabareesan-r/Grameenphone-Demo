@@ -13,6 +13,8 @@ export const initialCallState = {
   card: null,
   currentLocation: null,
   locationPrompt: false,
+  // The last mobile number heard on the call: { number, found, speaker }. Null until one is heard.
+  heard: null,
   mood: { customer: "neutral", agent: "neutral", tip: null },
   compliance: [],
   suggestions: [],
@@ -37,6 +39,7 @@ function fromView(view) {
     card: view.card,
     currentLocation: view.current_location || null,
     locationPrompt: Boolean(view.location_prompt),
+    heard: view.heard || null,
     mood: view.mood,
     compliance: view.compliance,
     suggestions: view.suggestions,
@@ -72,7 +75,9 @@ export function callReducer(state, action) {
     case "transcript":
       return applyTranscript(state, data);
     case "card":
-      return { ...state, card: data }; // null again when the agent picked the wrong customer
+      return { ...state, card: data, heard: data ? state.heard : null }; // null again when the agent picked the wrong customer
+    case "identity.heard":
+      return { ...state, heard: data };
     case "location":
       return { ...state, currentLocation: data.current_location, locationPrompt: false };
     case "location.prompt":

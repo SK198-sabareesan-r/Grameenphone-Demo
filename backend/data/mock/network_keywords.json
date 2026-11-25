@@ -1,10 +1,12 @@
 {
-  "_note": "Words that show the customer is reporting a network problem. A sentence counts when it has one subject word AND one problem phrase, or one standalone phrase. When it counts, the panel prompts the agent to ask where the customer is right now.",
+  "_note": "Words that show the customer is reporting a network problem. A sentence counts when it has one subject word AND one problem phrase, or one standalone phrase. When it counts, the panel asks the agent to confirm where the customer is right now. affirm and negate are used to read the customer's reply when the agent names an area (for example 'Are you in Mirpur?' and 'ji').",
   "subjects": ["net", "internet", "network", "signal", "data", "নেট", "ইন্টারনেট", "নেটওয়ার্ক", "সিগন্যাল", "ডাটা", "ডেটা"],
   "problems": [
     "kaj korche na", "kaj korchena", "kaj kore na", "kaj korena", "cholche na", "cholchena", "chole na",
     "nai", "nei", "slow", "down", "not working", "does not work", "problem", "issue", "disconnect", "drop",
     "কাজ করছে না", "কাজ করে না", "চলছে না", "নেই", "নাই", "স্লো", "সমস্যা"
   ],
-  "standalone": ["no signal", "signal nai", "network nai", "network down", "net down", "সিগন্যাল নেই", "নেটওয়ার্ক নেই"]
+  "standalone": ["no signal", "signal nai", "network nai", "network down", "net down", "সিগন্যাল নেই", "নেটওয়ার্ক নেই"],
+  "affirm": ["ji", "jii", "jee", "haan", "han", "ha", "hya", "hyan", "yes", "yeah", "yep", "right", "correct", "thik", "thik ache", "ok", "okay", "হ্যাঁ", "হ্যা", "জি", "জী", "ঠিক", "ঠিক আছে", "হাঁ", "হা"],
+  "negate": ["na", "no", "nope", "nai", "noy", "না", "নাহ", "নয়", "নাই"]
 }

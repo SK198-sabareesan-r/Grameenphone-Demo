@@ -6,6 +6,7 @@ import re
 from copilot.repo.base import Repo
 
 NO_NOTICE = "No network notice on file for this area"
+BANGLISH_SUFFIXES = ("", "e", "te", "er", "ey")  # "Mirpur e", "Mirpure", "Mirpurer" are all Mirpur
 _SEPARATORS = re.compile(r"[\s.,;:!?\"'()\[\]{}\-/।]+")
 
 
@@ -51,9 +52,15 @@ class NetworkAreas:
         padded = f" {norm} "
         for alias, name in self._aliases:
             # Latin aliases must be whole words. Bengali words take suffixes (মিরপুরে), so match inside.
-            if (f" {alias} " in padded) if alias.isascii() else (alias in norm):
+            if self._mentions(alias, norm, padded):
                 return name
         return None
+
+    @staticmethod
+    def _mentions(alias: str, norm: str, padded: str) -> bool:
+        if not alias.isascii():
+            return alias in norm
+        return any(f" {alias}{suffix} " in padded for suffix in BANGLISH_SUFFIXES)
 
     async def status(self, area_text: str) -> dict:
         """Status for one area. An area with no notice says so and does not claim the network is fine."""

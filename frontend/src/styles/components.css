@@ -684,3 +684,22 @@
 .mode-human_agent {
   background: var(--gp-blue-soft);
 }
+
+/* One AI Copilot panel: the sections share a single card and are separated by a thin line. */
+.shell-section {
+  border-top: 1px solid var(--gp-border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.shell-section:first-of-type {
+  margin-top: 4px;
+}
+.shell .section-label {
+  margin: 0 0 6px;
+}
+.shell .card-head .section-label {
+  margin: 0;
+}
+.shell .suggestion {
+  margin-bottom: 8px;
+}

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { api } from "../api/client";
+import { api } from "../../api/client";
 
-export default function AskCopilot() {
+// Ask Copilot: the agent types a question and gets the approved answer with its source.
+export default function AskSection() {
   const [question, setQuestion] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -22,16 +23,16 @@ export default function AskCopilot() {
   }
 
   return (
-    <div className="card">
-      <h2>Ask Copilot</h2>
+    <section className="shell-section">
+      <p className="section-label">Ask Copilot</p>
       <form className="ask-form" onSubmit={submit}>
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask about packs, roaming, SIM, bills…"
+          placeholder="Ask about packs, roaming, SIM, bills&hellip;"
         />
         <button className="btn btn-primary" type="submit" disabled={busy}>
-          {busy ? "…" : "Ask"}
+          {busy ? "\u2026" : "Ask"}
         </button>
       </form>
       {error && <p className="error">{error}</p>}
@@ -51,6 +52,6 @@ export default function AskCopilot() {
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
