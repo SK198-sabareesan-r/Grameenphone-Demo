@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { api } from "../api/client";
+import { useEffect, useRef } from "react";
 import { SPEAKER_LABEL, formatClock } from "../state/callLabels";
 
 function Line({ speaker, text, partial, ts }) {
@@ -12,43 +11,6 @@ function Line({ speaker, text, partial, ts }) {
       </span>
       <span className="line-text">{text}</span>
     </div>
-  );
-}
-
-function TypedLine() {
-  const [speaker, setSpeaker] = useState("customer");
-  const [text, setText] = useState("");
-  const [error, setError] = useState("");
-
-  async function submit(event) {
-    event.preventDefault();
-    if (!text.trim()) return;
-    setError("");
-    try {
-      await api.addTranscriptLine(speaker, text.trim());
-      setText("");
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  return (
-    <form className="typed-line" onSubmit={submit}>
-      <select value={speaker} onChange={(e) => setSpeaker(e.target.value)} aria-label="Speaker">
-        <option value="customer">Customer</option>
-        <option value="human_agent">Agent</option>
-        <option value="ai_agent">AI agent</option>
-      </select>
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Type a line if live audio is not available…"
-      />
-      <button className="btn btn-ghost" type="submit">
-        Send
-      </button>
-      {error && <p className="error">{error}</p>}
-    </form>
   );
 }
 
@@ -79,7 +41,6 @@ export default function Transcript({ turns, partials }) {
           ([speaker, text]) => text && <Line key={`p-${speaker}`} speaker={speaker} text={text} partial />
         )}
       </div>
-      <TypedLine />
     </div>
   );
 }

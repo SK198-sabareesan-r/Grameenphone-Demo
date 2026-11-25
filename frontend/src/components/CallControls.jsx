@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import { MODE_LABEL, callStatusText } from "../state/callLabels";
-import StartCall from "./copilot/StartCall";
 
 // Call status and controls. Voice calls (forwarded by the voice agent) carry a status and who handles
 // the call; typed calls do not.
@@ -39,11 +38,9 @@ export default function CallControls({ call }) {
           End call and summarise
         </button>
       </div>
-      {status !== "live" && <StartCall />}
       {!isVoiceCall && (
         <p className="muted small call-bar-note">
-          Phone calls appear here when the voice agent forwards them. To run a call without telephony, start one
-          above and use the typed lines in the transcript.
+          Phone calls appear here when the voice agent forwards them.
         </p>
       )}
       {call.status === "with_human" && (

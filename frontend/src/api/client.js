@@ -62,10 +62,7 @@ export const api = {
     request(API.login, { method: "POST", body: { username, password }, auth: false }),
   me: () => request(API.me),
   wsTicket: () => request(API.wsTicket, { method: "POST" }),
-  startCall: (callerNumber) => request(API.calls, { method: "POST", body: { caller_number: callerNumber } }),
   endCall: () => request(API.endCall, { method: "POST" }),
-  addTranscriptLine: (speaker, text) =>
-    request(API.transcript, { method: "POST", body: { speaker, text } }),
   analyze: () => request(API.analyze, { method: "POST" }),
   runAnswer: () => request(API.answers, { method: "POST" }),
   generateSummary: () => request(API.summary, { method: "POST" }),

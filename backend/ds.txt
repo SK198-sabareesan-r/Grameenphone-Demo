@@ -1,0 +1,37 @@
+config/.env is missing: COPILOT_SESSION_SECRET. Related features will not work.
+Users file users.json not found: nobody can sign in to the Copilot.
+COPILOT_SESSION_SECRET is not set: Copilot sign-in is disabled.
+start: card=Abdul Rahim confirmed=False notice=maintenance
+[A] Assalamu alaikum, Grameenphone theke ami Tania bolchi. Kiv
+    confirmed=False verify=idle price=idle mood=neutral here=- offers=-
+Knowledge Base search failed, using the local articles: TimeoutError: 
+[C] Bhai, amar net 2 din dhore kaj korche na, khub problem hoc
+    confirmed=False verify=idle price=idle mood=neutral here=- offers=-
+[A] Apnar mobile number ta bolben?
+    confirmed=False verify=idle price=idle mood=neutral here=- offers=-
+    ANSWER: First, confirm the customer's mobile number to identify them. Once confirmed, check the network status — there is ongoing maintenance in the Mirpur area (until 6:00 PM today) which is likely causing the issue. Ask the customer whe
+[C] Amar number 9500799295.
+    confirmed=True verify=idle price=idle mood=neutral here=- offers=-
+    ANSWER: The customer has provided their number as 9500799295 — this matches Abdul Rahim's card. Please verify the customer's identity first, then you can address the internet issue. After identity verification, note there is an active net
+[A] Apni ki ekhon Mirpur e achen?
+    confirmed=True verify=idle price=idle mood=neutral here=- offers=-
+[C] Ji, Mirpur e achi.
+    confirmed=True verify=idle price=idle mood=neutral here=Mirpur offers=-
+    ANSWER: After verifying identity: The customer's current location is Mirpur, which matches the registered location. There is ongoing network maintenance in the Mirpur area until 6:00 PM today — this explains the internet issue. Please inf
+[A] Apnar account er details bolchi…
+    confirmed=True verify=red price=idle mood=neutral here=Mirpur offers=-
+[A] Age apnar last recharge koto chilo, bolben?
+    confirmed=True verify=green price=idle mood=neutral here=Mirpur offers=-
+[C] Last recharge 100 taka chilo, 22 November e.
+    confirmed=True verify=green price=idle mood=frustrated here=Mirpur offers=network-apology
+[C] Prottek bar eki kotha bolen, kono kaj hoy na!
+    confirmed=True verify=green price=idle mood=frustrated here=Mirpur offers=network-apology
+[A] Ami dukkhito. Apnar elakay maintenance cholche, 6 tar modd
+    confirmed=True verify=green price=idle mood=frustrated here=Mirpur offers=network-apology*
+[A] Apni protimash e data shesh hoye jay, boro pack ta nite pa
+    confirmed=True verify=green price=idle mood=frustrated here=Mirpur offers=network-apology*
+[C] Thik ache, chalu kore den.
+    confirmed=True verify=green price=pending mood=neutral here=Mirpur offers=network-apology*,bigger-pack*
+    ANSWER: The customer agrees to activate a larger pack. From the pack catalog, the best match is the 60 GB + 1500 minutes pack at Tk 999, valid 30 days — no activation code is published, so it must be activated via MyGP app or by the agent
+[A] Pack er price 598 taka, validity 30 din.
+    confirmed=True verify=green price=green mood=neutral here=Mirpur offers=network-apology*,bigger-pack*

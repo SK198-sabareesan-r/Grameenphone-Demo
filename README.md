@@ -98,8 +98,9 @@ pytest                                        # no network, no provider calls
 
 ## Telephony
 
-Phone calls are handled by the voice agent (Vobiz). The Copilot is not yet connected to it: calls on
-the panel come from typed lines until the voice-to-Copilot integration is added.
+Phone calls are handled by the voice agent (Vobiz), which forwards each call and its live transcript to the Copilot
+(see [M3-LIVE-VOICE.md](M3-LIVE-VOICE.md)). The panel only shows calls that arrive this way. It has no box for typing
+transcript lines or starting a call.
 
 ## API (Copilot)
 
@@ -116,7 +117,7 @@ All routes need a signed-in agent except where marked public.
 | Call | GET | `/api/calls/current` | Current call state |
 | Call | POST | `/api/calls/current/end` | End the call on screen |
 | Transcript | GET | `/api/transcript` | Turns so far |
-| Transcript | POST | `/api/transcript` | Add one typed line (same steps as live speech) |
+| Transcript | POST | `/api/transcript` | Add one line through the API (same steps as live speech). The panel has no box for this |
 | Analysis | POST | `/api/analyze` | Run mood and next-best-action analysis now |
 | Answers | GET | `/api/answers` | Automatic lookups made so far for the customer's sentences |
 | Answers | POST | `/api/answers` | Look up the customer's latest sentence now |
@@ -148,7 +149,7 @@ The voice agent forwards live transcripts and call events to the Copilot, which 
 
 The agent types nothing to start the Copilot. Everything is read from the live transcript:
 
-1. **Caller ID, then the mobile number.** When a call reaches the human agent, the caller ID is looked up at once and the customer card appears, marked **Not confirmed yet**. The customer's network status shows with it. The number is confirmed in one of two ways: the customer says it on the call (or says yes after the agent reads it back), which is picked up automatically, or the agent confirms or types it in the box on the card. A different number loads that customer instead. Until the number is confirmed, the answer tells the agent to confirm it first and does not quote balance, bill or ticket details. Bangladesh numbers have 11 digits (`01XXXXXXXXX`) and Indian numbers have 10 (`9500799295`, also read as `+91...`). If no customer has the number, the panel says so and keeps listening. Speech from an unverified speaker is never used. `Not this customer` hides the card and ignores that number until another is heard. A call can also be started from the panel with a caller ID, for testing without telephony (`POST /api/calls`).
+1. **Caller ID, then the mobile number.** When a call reaches the human agent, the caller ID is looked up at once and the customer card appears, marked **Not confirmed yet**. The customer's network status shows with it. The number is confirmed in one of two ways: the customer says it on the call (or says yes after the agent reads it back), which is picked up automatically, or the agent confirms or types it in the box on the card. A different number loads that customer instead. Until the number is confirmed, the answer tells the agent to confirm it first and does not quote balance, bill or ticket details. Bangladesh numbers have 11 digits (`01XXXXXXXXX`) and Indian numbers have 10 (`9500799295`, also read as `+91...`). If no customer has the number, the panel says so and keeps listening. Speech from an unverified speaker is never used. `Not this customer` hides the card and ignores that number until another is heard. The panel has no box for starting a test call or typing transcript lines: calls reach it from the voice agent. The routes `POST /api/calls` (start a call with a caller ID) and `POST /api/transcript` (add a line) stay in the API for tests and scripts.
 2. **Location.** The card shows the network status of the registered area straight away, read from the 
 etwork-areas table. When the customer reports a network problem, the panel asks the agent to confirm the area. The customer's reply sets the location: a place name, or a yes after the agent named the area. The status of that area is read from the table and the answer is looked up again.
 3. **One panel.** The customer card, location, answer, next best action, mood, compliance and Ask Copilot are sections of one AI Copilot card.

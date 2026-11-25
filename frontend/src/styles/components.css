@@ -152,17 +152,7 @@
   opacity: 0.55;
 }
 
-.typed-line {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
 
-.typed-line input {
-  flex: 1;
-  min-width: 160px;
-}
 
 /* Customer card */
 .customer-head {
@@ -740,7 +730,7 @@
   }
 }
 
-/* The number state on the customer card, and the box that starts a call without telephony. */
+/* The number state on the customer card. */
 .confirm-state {
   margin: 8px 0;
 }
@@ -752,23 +742,6 @@
 }
 .confirm-state.unconfirmed p {
   margin: 6px 0 0;
-}
-.start-call {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-.start-call input {
-  flex: 1 1 200px;
-  font: inherit;
-  padding: 8px 10px;
-  border: 1px solid var(--gp-border);
-  border-radius: 8px;
-}
-.start-call .error {
-  flex-basis: 100%;
-  margin: 0;
 }
 
 /* The Tickets tab: filters on top, a table below. */
