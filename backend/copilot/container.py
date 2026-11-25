@@ -38,6 +38,7 @@ REQUIRED_SETTINGS = (
 @dataclass
 class Container:
     settings: Settings
+    bedrock: BedrockClient
     repo: Repo
     hub: PanelHub
     registry: SessionRegistry
@@ -75,6 +76,7 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
     areas = NetworkAreas(repo)
     return Container(
         settings=settings,
+        bedrock=bedrock,
         repo=repo,
         hub=hub,
         registry=SessionRegistry(),

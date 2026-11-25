@@ -64,8 +64,10 @@ class Settings(BaseSettings):
     # Bedrock Knowledge Base (retrieval). Empty means the app keeps using the local article search.
     bedrock_kb_id: str = ""
     bedrock_kb_top_k: int = 5
-    bedrock_kb_timeout_s: float = 6.0
-    bedrock_kb_rewrite_query: bool = True  # rewrite Bangla/Banglish sentences into an English query first
+    startup_warm_up: bool = True  # make the first AWS calls at startup so the first live lookup is not slow
+    bedrock_kb_timeout_s: float = 4.0
+    # Off by default: the extra model call costs 1 to 3 s. The keyword list covers Banglish instead.
+    bedrock_kb_rewrite_query: bool = False
     bedrock_kb_rewrite_timeout_s: float = 3.0
 
     # Automatic lookup for each customer sentence

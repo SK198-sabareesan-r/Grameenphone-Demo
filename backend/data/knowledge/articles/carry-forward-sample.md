@@ -7,8 +7,11 @@ source_url: mock://demo/carry-forward-sample
 fetched: 2026-11
 keywords: carry forward, expire, pack expire, data ferot, 5 GB baki, unused data, ফেরত, মেয়াদ শেষ
 ---
-SAMPLE RULE for the demo. The public rule says unused data carries forward when the same pack is bought within the active validity.
-Sample rule used in the demo: if the same pack is bought again within 3 days after expiry, leftover data carries forward.
-Tell the customer the pack to buy and the deadline.
+SAMPLE RULE TABLE for the demo. This is a sample, not GP policy. Say so to the customer and the agent.
 
-Public confirmation of the real rule: GP's recharge terms page says unused data is carried forward only when the same internet pack is re-activated within the active validity period. Offer pages say that after validity ends, leftover minutes and data are forfeited, but buying the same pack within the validity period adds them. The 3-day sample rule above is a demo rule only.
+Rule to apply for a customer whose pack has expired with data left (sample):
+- If the customer buys the same pack again within 3 days after it expired, the leftover data carries forward.
+- If the same pack is bought after 3 days, the leftover data is lost.
+- Tell the customer which pack to buy again and the deadline (3 days after the expiry date).
+
+For comparison only: GP's published recharge terms say unused data is carried forward when the same internet pack is re-activated within the active validity period, and leftover data is forfeited after validity ends. The sample rule above is more generous and is used only to show how Copilot applies a rule table.

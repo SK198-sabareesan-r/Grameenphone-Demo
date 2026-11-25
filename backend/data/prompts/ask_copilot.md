@@ -8,7 +8,7 @@ Knowledge articles:
 Agent's question:
 {{question}}
 
-Write a short, step-by-step answer for the agent. Use the same language style as the question (English, Bangla, or Banglish). Keep codes and numbers exactly as written in the articles. If an article is marked as sample or mock, say so.
+Write a short, step-by-step answer for the agent. Write the answer in clear English, even when the question is in Bangla or Banglish. Do not use Bangla script or Banglish in the answer.
 
 Return only one JSON object, with no other text:
 {"answer": "...", "sources": ["article-id", "..."]}

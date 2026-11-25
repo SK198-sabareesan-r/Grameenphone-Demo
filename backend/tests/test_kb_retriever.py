@@ -3,7 +3,7 @@ import asyncio
 from pathlib import Path
 
 from config.settings import Settings
-from copilot.services.kb_retriever import KnowledgeRetriever, articles_from_results
+from copilot.services.kb_retriever import KnowledgeRetriever, articles_from_results, fuse
 from copilot.services.knowledge import KnowledgeBase
 
 DATA = Path(__file__).resolve().parents[1] / "data"
@@ -77,7 +77,7 @@ def test_a_kb_failure_falls_back_to_local_and_pauses_the_kb():
 
 def test_kb_results_are_used_and_the_query_is_rewritten():
     bedrock = FakeBedrock({"query": "how to activate roaming"})
-    retriever = make(bedrock=bedrock)
+    retriever = make(bedrock=bedrock, bedrock_kb_rewrite_query=True)
     seen = []
     retriever._retrieve = lambda text: seen.append(text) or [chunk("roaming-activation", "Dial *121#", "Roaming")]
     found = asyncio.run(retriever.search("roaming kemne chalu korbo"))
@@ -87,8 +87,20 @@ def test_kb_results_are_used_and_the_query_is_rewritten():
 
 
 def test_the_original_sentence_is_used_when_the_rewrite_fails():
-    retriever = make(bedrock=FakeBedrock(error=RuntimeError("throttled")))
+    retriever = make(bedrock=FakeBedrock(error=RuntimeError("throttled")), bedrock_kb_rewrite_query=True)
     seen = []
     retriever._retrieve = lambda text: seen.append(text) or [chunk("a", "x")]
     asyncio.run(retriever.search("net kaj korche na"))
     assert seen == ["net kaj korche na"]
+
+
+def test_fusion_puts_documents_found_by_both_lists_first():
+    a, b, c = (articles_from_results([chunk(i, i)], 1)[0] for i in 'abc')
+    assert [x.id for x in fuse([a, b], [c, b], limit=3)] == ['b', 'a', 'c']
+
+
+def test_the_keyword_list_rescues_a_miss_of_the_vector_search():
+    retriever = make()
+    retriever._retrieve = lambda text: [chunk('campaign-faq', 'unrelated')]
+    found = asyncio.run(retriever.search('SIM hariye gese, ki korbo', 4))
+    assert 'sim-replacement' in [x.id for x in found]

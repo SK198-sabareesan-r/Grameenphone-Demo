@@ -98,9 +98,11 @@ class LiveAssist:
     # ---- one lookup ----
 
     async def _handle(self, session: CallSession, turn: Turn) -> dict:
-        articles = await self._kb.search(self._query(session, turn), self._limit)
         await self._hub.broadcast("answer.pending", {"turn_id": turn.id, "question": turn.text})
-        packs, centres = await self._reference(session)
+        # The knowledge search and the packs and GP Centres read are independent, so they run together.
+        articles, (packs, centres) = await asyncio.gather(
+            self._kb.search(self._query(session, turn), self._limit), self._reference(session)
+        )
         entry = await self._generate(session, turn, articles, packs, centres)
         session.set_answer(entry)
         await self._hub.broadcast("answer", entry)

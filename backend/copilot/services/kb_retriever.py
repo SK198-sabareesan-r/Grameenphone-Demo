@@ -55,6 +55,20 @@ def articles_from_results(results: list[dict], limit: int) -> list[Article]:
     return [_article_from_chunks(doc_id, chunks) for doc_id, chunks in list(groups.items())[:limit]]
 
 
+def fuse(semantic: list[Article], keyword: list[Article], limit: int, k: int = 3) -> list[Article]:
+    """Merge the two ranked lists (reciprocal rank fusion), so a Banglish sentence that the vector search
+    misses can still be found by the keyword list, at no extra call. Documents found by both come first.
+    The Knowledge Base text is kept when both lists have the document."""
+    scores: dict[str, float] = {}
+    chosen: dict[str, Article] = {}
+    for ranked in (semantic, keyword):
+        for rank, article in enumerate(ranked):
+            scores[article.id] = scores.get(article.id, 0.0) + 1.0 / (k + rank)
+            chosen.setdefault(article.id, article)
+    order = sorted(scores, key=lambda i: scores[i], reverse=True)
+    return [chosen[i] for i in order[:limit]]
+
+
 class KnowledgeRetriever:
     def __init__(self, settings: Settings, bedrock: BedrockClient, local: KnowledgeBase) -> None:
         self._settings, self._bedrock, self._local = settings, bedrock, local
@@ -84,7 +98,7 @@ class KnowledgeRetriever:
                 asyncio.to_thread(self._retrieve, text), self._settings.bedrock_kb_timeout_s
             )
             self._last_error = ""
-            return articles_from_results(results, limit)
+            return fuse(articles_from_results(results, limit), self._local.search(query, limit), limit)
         except Exception as error:
             self._last_error = f"{type(error).__name__}: {str(error)[:200]}"
             self._skip_until = time.monotonic() + self._settings.data_retry_after_s
@@ -107,12 +121,20 @@ class KnowledgeRetriever:
             log.info("Query rewrite skipped: %s", type(error).__name__)
             return query
 
-    def _retrieve(self, text: str) -> list[dict]:
+    async def warm_up(self) -> None:
+        """Open the connection and load credentials before the first call, which is otherwise 3 to 5 s slower."""
+        if self._kb_id:
+            await asyncio.to_thread(self._retrieve, "internet")
+
+    def _get_client(self):
         if self._client is None:
             self._client = aws_session(self._settings).client(
                 "bedrock-agent-runtime", config=Config(read_timeout=10, retries={"max_attempts": 1})
             )
-        reply = self._client.retrieve(
+        return self._client
+
+    def _retrieve(self, text: str) -> list[dict]:
+        reply = self._get_client().retrieve(
             knowledgeBaseId=self._kb_id,
             retrievalQuery={"text": text},
             retrievalConfiguration={
