@@ -30,7 +30,7 @@ function AnswerCard({ entry, latest }) {
       )}
       {entry.clarifying_question && (
         <p className="answer-clarify">
-          <strong>Ask:</strong> {entry.clarifying_question}
+          <strong>Ask the customer:</strong> {entry.clarifying_question}
         </p>
       )}
       <div className="answer-tags">

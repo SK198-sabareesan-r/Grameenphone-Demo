@@ -16,7 +16,7 @@ from copilot.utils.helpers import read_text, render_prompt
 log = logging.getLogger(__name__)
 SYSTEM = (
     "You answer contact-centre agent questions from approved articles and reply with JSON only. "
-    "Always answer in English, whatever language the question is in."
+    "Always answer in the language of the agent's question: Bangla, Banglish (Bangla in English letters) or English."
 )
 CONDENSE_SYSTEM = "You rewrite a chat message into a standalone search question and reply with JSON only."
 NO_ANSWER = "I could not find this in the approved knowledge. Please escalate to a supervisor."

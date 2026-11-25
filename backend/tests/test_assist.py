@@ -248,3 +248,57 @@ def test_the_lookup_carries_on_with_the_card_when_the_knowledge_base_cannot_be_r
     assert entry["needs_lookup"] is True and entry["sources"] == [] and entry["mode"] == "ai"
     assert "knowledge base could not be reached" in bedrock.prompts[0]
     assert "Do not answer from memory" in bedrock.prompts[0]
+
+
+def reply(**extra) -> dict:
+    return {"needs_lookup": True, "answer": "Check the area.", "sources": [], "confidence": "medium", **extra}
+
+
+def test_a_translation_in_brackets_is_removed_from_the_ask_line():
+    asked = "Apni ekhon kothay achen? (Where are you right now?)"
+    assist, _ = make(FakeBedrock(reply(clarifying_question=asked)))
+    entry = asyncio.run(assist.run_now(session_with(("customer", "Amar network kaj korche na"))))
+    assert entry["clarifying_question"] == "Apni ekhon kothay achen?"
+
+
+def test_the_same_ask_line_is_not_shown_twice_on_a_call():
+    assist, _ = make(FakeBedrock(reply(clarifying_question="Apni ekhon kothay achen?")))
+    session = session_with(("customer", "Amar network kaj korche na"))
+    first = asyncio.run(assist.run_now(session))
+    session.add_turn("customer", "Amar net slow, kichu hocche na")
+    second = asyncio.run(assist.run_now(session))
+    assert first["clarifying_question"] == "Apni ekhon kothay achen?"
+    assert second["clarifying_question"] is None and second["answer"]  # the answer stays, only the repeat goes
+    again = asyncio.run(assist.run_now(session))  # the same sentence looked up again keeps its own ask line
+    assert again["clarifying_question"] is None  # already shown for an earlier sentence
+
+
+def test_a_regenerated_answer_for_the_same_sentence_keeps_its_ask_line():
+    assist, _ = make(FakeBedrock(reply(clarifying_question="Which country are you travelling to?")))
+    session = session_with(("customer", "Roaming kivabe chalu hoy?"))
+    asyncio.run(assist.run_now(session))
+    again = asyncio.run(assist.run_now(session))
+    assert again["clarifying_question"] == "Which country are you travelling to?"
+
+
+def test_blank_or_non_text_ask_lines_become_none():
+    for value in ["", "   ", None, 5, ["x"], "(only a bracket)"]:
+        assist, _ = make(FakeBedrock(reply(clarifying_question=value)))
+        entry = asyncio.run(assist.run_now(session_with(("customer", "Amar network kaj korche na"))))
+        assert entry["clarifying_question"] is None, value
+
+
+def test_a_long_answer_is_cut_at_the_end_of_a_sentence():
+    long_answer = ("Dial *121*1*4# to see the data left. " * 20).strip()
+    assist, _ = make(FakeBedrock(reply(answer=long_answer)))
+    entry = asyncio.run(assist.run_now(session_with(("customer", "Amar internet koto ache?"))))
+    assert len(entry["answer"]) <= 600 and entry["answer"].endswith("left.")
+
+
+def test_the_prompt_tells_the_model_how_to_write_the_ask_line():
+    bedrock = FakeBedrock({"needs_lookup": False})
+    assist, _ = make(bedrock)
+    asyncio.run(assist.run_now(session_with(("customer", "Amar bill koto?"))))
+    prompt = bedrock.prompts[0]
+    assert "language and script of the customer's latest sentence" in prompt
+    assert "Do not ask for the mobile number when" in prompt

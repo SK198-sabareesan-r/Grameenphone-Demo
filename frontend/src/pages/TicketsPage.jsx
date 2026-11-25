@@ -167,7 +167,6 @@ export default function TicketsPage() {
           </table>
         </div>
       )}
-      <p className="muted small">Dates are Bangladesh dates. Click a ticket to see its details.</p>
     </div>
   );
 }

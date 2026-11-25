@@ -63,7 +63,7 @@ function SourceNote({ source }) {
       </p>
     );
   }
-  return <p className="mock-note">Counted from the saved calls ({source.backend === "dynamodb" ? "DynamoDB" : "memory"}) when this page was opened.</p>;
+  return null;
 }
 
 // What the dashboard shows for the numbers it was given. Nothing here is sample data.

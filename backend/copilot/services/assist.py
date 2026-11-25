@@ -27,6 +27,7 @@ CONFIDENCE_LEVELS = {"high", "medium", "low"}
 MAX_ANSWER_CHARS = 600
 SHORT_SENTENCE_WORDS = 5  # shorter sentences are searched together with the customer's previous one
 _PUNCTUATION = re.compile(r"[^\w\s]", re.UNICODE)
+_TRAILING_BRACKET = re.compile(r"\s*[(\[][^()\[\]]*[)\]]\s*$")  # a translation the model added after the question
 
 
 def _words(text: str) -> list[str]:
@@ -158,7 +159,7 @@ class LiveAssist:
                 self._bedrock.complete_json(self._model, SYSTEM, prompt, max_tokens=500),
                 self._timeout_s,
             )
-            return self._clean(raw, turn, articles)
+            return self._clean(raw, turn, articles, session)
         except Exception:
             log.exception("Bedrock lookup failed, showing the matching articles only")
             return self._search_only(turn, articles)
@@ -196,12 +197,11 @@ class LiveAssist:
 
     # ---- shaping the result ----
 
-    def _clean(self, raw: dict, turn: Turn, articles: list[Article]) -> dict:
+    def _clean(self, raw: dict, turn: Turn, articles: list[Article], session: CallSession | None = None) -> dict:
         if raw.get("needs_lookup") is not True:
             return {"turn_id": turn.id, "question": turn.text, "needs_lookup": False}
-        answer = str(raw.get("answer") or "").strip()[:MAX_ANSWER_CHARS]
-        clarify = raw.get("clarifying_question")
-        clarify = clarify.strip() if isinstance(clarify, str) and clarify.strip() else None
+        answer = self._shorten(str(raw.get("answer") or "").strip())
+        clarify = self._clean_question(raw.get("clarifying_question"), turn, session)
         allowed = {a.id: a for a in articles}
         listed = raw.get("sources") if isinstance(raw.get("sources"), list) else []
         ids = [i for i in dict.fromkeys(listed) if isinstance(i, str) and i in allowed]
@@ -218,6 +218,28 @@ class LiveAssist:
             "mode": "ai",
         }
 
+    @staticmethod
+    def _shorten(answer: str) -> str:
+        """Cut a long answer at the end of a sentence, not in the middle of a word or a code."""
+        if len(answer) <= MAX_ANSWER_CHARS:
+            return answer
+        cut = answer[:MAX_ANSWER_CHARS]
+        end = max(cut.rfind(". "), cut.rfind("? "), cut.rfind("! "), cut.rfind("\u0964 "))  # \u0964 is the Bangla full stop
+        if end >= MAX_ANSWER_CHARS // 2:
+            return cut[: end + 1]
+        return cut.rsplit(" ", 1)[0].rstrip(" ,;:") + "\u2026"
+    @staticmethod
+    def _clean_question(value, turn: Turn, session: CallSession | None) -> str | None:
+        """The "Ask" line. Drops a bracketed translation, and drops a question the panel already showed on this call,
+        so the agent is not told to ask the same thing again and again."""
+        if not isinstance(value, str):
+            return None
+        question = _TRAILING_BRACKET.sub("", value.strip()).strip()
+        if not question:
+            return None
+        asked = {" ".join(_words(a["clarifying_question"])) for a in (session.answers if session else [])
+                 if a.get("clarifying_question") and a.get("turn_id") != turn.id}
+        return None if " ".join(_words(question)) in asked else question
     @staticmethod
     def _search_only(turn: Turn, articles: list[Article]) -> dict:
         if not articles:

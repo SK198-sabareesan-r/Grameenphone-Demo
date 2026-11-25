@@ -43,7 +43,11 @@ Rules for the answer:
 - sources: the ids of the knowledge articles you actually used, and nothing else. Use [] if you used none.
 - used_customer_data: true only if the answer relies on the customer card or the network notice.
 - confidence: "high" when the information below clearly answers the question, "medium" when it partly does, "low" when it does not.
-- clarifying_question: one short question the agent could ask if the request is unclear, otherwise null.
+- clarifying_question: the "Ask" line shown to the agent. It is the exact sentence the agent can say to the customer, so it must follow these rules:
+  - Use it only when one missing detail stops you from answering (which pack, which country, Android or iPhone). Otherwise null. Never use it to repeat what the answer already tells the agent to do.
+  - Speak to the customer directly ("you"), never about "the customer". One short sentence, no translation or explanation in brackets.
+  - Write it in the language and script of the customer's latest sentence: Bangla script for Bangla, Banglish (Bangla in English letters) for Banglish, English for English.
+  - Do not ask for the mobile number when "Mobile number confirmed by the customer" is "yes" or the customer has just said their number. Do not ask where the customer is when current_location is set. Do not ask anything the agent already asked in the recent transcript.
 
 Return only one JSON object, with no other text:
 {"needs_lookup": true, "answer": "...", "sources": ["article-id"], "used_customer_data": false, "confidence": "high", "clarifying_question": null}
