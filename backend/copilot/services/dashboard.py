@@ -10,6 +10,7 @@ from copilot.services.storage import CallStorage
 from copilot.services.ticket_filter import BANGLADESH_TIME
 
 TREND_DAYS = 7
+MAX_TREND_DAYS = 31  # a longer date range shows the mood of its last 31 days (the numbers above it cover all of it)
 TOP_SUGGESTIONS = 5
 CALM_MOODS = {"calm", "neutral"}  # shown together as "calm"
 
@@ -32,9 +33,10 @@ def call_mood(record: dict) -> str | None:
     return "calm" if moods & CALM_MOODS else None
 
 
-def mood_trend(records: list[dict], today: date) -> list[dict]:
-    """One row per day for the last TREND_DAYS days, oldest first. Percentages are of the calls that day with a mood."""
-    days = [today - timedelta(days=n) for n in range(TREND_DAYS - 1, -1, -1)]
+def mood_trend(records: list[dict], today: date, days_count: int = TREND_DAYS) -> list[dict]:
+    """One row per day for the `days_count` days ending `today`, oldest first. Percentages are of the calls that day
+    with a mood."""
+    days = [today - timedelta(days=n) for n in range(days_count - 1, -1, -1)]
     by_day: dict[date, list[dict]] = {d: [] for d in days}
     for record in records:
         day = _day(record.get("started_at"))
@@ -52,13 +54,15 @@ def mood_trend(records: list[dict], today: date) -> list[dict]:
     return rows
 
 
-def top_suggestions(records: list[dict]) -> list[dict]:
-    """The suggestions shown most often, with how many were used. Counted by title, over all saved calls."""
+def top_suggestions(records: list[dict], titles: dict[str, str] | None = None) -> list[dict]:
+    """The suggestions shown most often, with how many were used, over all saved calls. A catalog suggestion is
+    counted under its English title (`titles`, by id), whatever language it was shown in; others by their title."""
+    titles = titles or {}
     shown: Counter = Counter()
     used: Counter = Counter()
     for record in records:
         for suggestion in record.get("suggestions") or []:
-            title = suggestion.get("title") or suggestion.get("id")
+            title = titles.get(suggestion.get("id") or "") or suggestion.get("title") or suggestion.get("id")
             if not title:
                 continue
             shown[title] += 1
@@ -68,13 +72,26 @@ def top_suggestions(records: list[dict]) -> list[dict]:
 
 
 class DashboardService:
-    def __init__(self, storage: CallStorage) -> None:
+    def __init__(self, storage: CallStorage, titles: dict[str, str] | None = None) -> None:
         self._storage = storage
+        self._titles = titles or {}  # suggestion id -> English catalog title
 
-    async def build(self, now: datetime | None = None) -> dict:
+    async def build(
+        self, now: datetime | None = None, *, from_date: date | None = None, to_date: date | None = None
+    ) -> dict:
+        """All saved calls, or only those that started on a Bangladesh date in [from_date, to_date] (both inclusive,
+        either may be left out). The mood trend covers the chosen days, at most MAX_TREND_DAYS, or the last 7 days."""
         all_records = await self._storage.all_records()
         records = [r for r in all_records if r.get("turns")]  # a call with no transcript line did not use the Copilot
         today = (now or datetime.now(timezone.utc)).astimezone(BANGLADESH_TIME).date()
+        if from_date or to_date:
+            records = [r for r in records if _in_range(_day(r.get("started_at")), from_date, to_date)]
+        # The trend ends on the last chosen day, but never after today (future days have no calls)...
+        trend_end = today if to_date is None else min(to_date, today)
+        if from_date and from_date > trend_end:  # ...unless the whole range is in the future
+            trend_end = to_date or from_date
+        trend_start = min(from_date or (trend_end - timedelta(days=TREND_DAYS - 1)), trend_end)
+        trend_days = min(MAX_TREND_DAYS, (trend_end - trend_start).days + 1)
         suggestions = [s for r in records for s in r.get("suggestions") or []]
         shown = len(suggestions)
         accepted = sum(1 for s in suggestions if s.get("used"))
@@ -87,6 +104,17 @@ class DashboardService:
                 "acceptance_rate": round(100 * accepted / shown) if shown else None,
                 "tickets_raised": sum(1 for r in records if r.get("ticket")),
             },
-            "mood_trend": mood_trend(records, today),
-            "top_suggestions": top_suggestions(records),
+            "mood_trend": mood_trend(records, trend_end, trend_days),
+            "top_suggestions": top_suggestions(records, self._titles),
+            "range": {
+                "from_date": from_date.isoformat() if from_date else None,
+                "to_date": to_date.isoformat() if to_date else None,
+                "trend_days": trend_days,
+            },
         }
+
+
+def _in_range(day: date | None, from_date: date | None, to_date: date | None) -> bool:
+    if day is None:
+        return False  # no readable start time: cannot be placed in a date range
+    return (from_date is None or day >= from_date) and (to_date is None or day <= to_date)

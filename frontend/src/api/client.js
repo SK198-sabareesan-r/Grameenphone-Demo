@@ -82,7 +82,14 @@ export const api = {
     return request(`${API.tickets}?${query}`);
   },
   createTicket: (ticket) => request(API.tickets, { method: "POST", body: ticket }),
-  dashboard: () => request(API.dashboard),
+  // range: { fromDate, toDate } as YYYY-MM-DD Bangladesh dates. Empty ones are left out.
+  dashboard: ({ fromDate, toDate } = {}) => {
+    const query = new URLSearchParams();
+    if (fromDate) query.set("from_date", fromDate);
+    if (toDate) query.set("to_date", toDate);
+    const qs = query.toString();
+    return request(qs ? `${API.dashboard}?${qs}` : API.dashboard);
+  },
   listSessions: () => request(`${API.sessions}?limit=100`),
   getSession: (id) => request(API.session(id)),
   confirmIdentity: (mobileNumber) =>

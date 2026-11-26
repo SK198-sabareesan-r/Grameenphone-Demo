@@ -1,4 +1,6 @@
-You write the after-call note for a Grameenphone contact-centre agent. The call may be in Bangla, English or Banglish. Write the note in English.
+You write the after-call note for a Grameenphone contact-centre agent. The call may be in Bangla, English or Banglish.
+
+Language of this call: {{language}}. Write "problem", "checked", "outcome", "follow_up" and "subject" in {{language}}. {{language_rule}} "category" is always one of the allowed categories, exactly as written in English. If there is no follow-up, write "None" in {{language}}.
 
 Transcript lines are labelled CUSTOMER (the caller), AI AGENT (the automated voice assistant) and HUMAN AGENT (the Grameenphone agent). Keep them apart: in "checked" and "outcome", say what the human agent did, and mention anything the AI agent said or did only as the AI agent's.
 

@@ -49,12 +49,12 @@ logger = logging.getLogger(__name__)
 
 REQUESTED, DIALING, CONNECTED, FAILED, COMPLETED = "requested", "dialing", "connected", "failed", "completed"
 ACTIVE_STATES = (REQUESTED, DIALING, CONNECTED)
-HANDOFF_FAILED_NOTICE = "Sorry, I could not reach a colleague right now. I am still here. How else can I help you?"
+HANDOFF_FAILED_NOTICE = "Sorry, I could not reach customer support right now. I am still here. How else can I help you?"
 MAX_STATES = 1000
 MAX_AGENT_NUMBERS = 5
 TRIGGER_COOLDOWN_S = 5.0  # one spoken request can arrive as two final transcripts; one transfer is enough
 UNAVAILABLE_NOTICE = (
-    "I am sorry, I cannot connect you to a human agent right now. I can still help with general questions."
+    "I am sorry, I cannot connect you to customer support right now. I can still help with general questions."
 )
 
 
@@ -300,7 +300,8 @@ class HandoffService:
     # ---- XML served to Vobiz ----------------------------------------------------------------------
 
     def _stream_ws_url(self, base: str, call_id: str, path: str) -> tuple[str, dict[str, str] | None]:
-        token = issue_stream_token(self._s.vobiz_auth_token.get_secret_value(), call_id)
+        token = issue_stream_token(self._s.vobiz_auth_token.get_secret_value(), call_id,
+                                   ttl_s=self._s.vobiz_stream_token_ttl_s)
         ws_base = https_to_wss(join_public_url(base, f"{path.rstrip('/')}/{quote(call_id, safe='')}"))
         if self._s.vobiz_ws_auth_mode == "start_event":
             return ws_base, {"token": token_to_header_safe(token)}
@@ -328,6 +329,7 @@ class HandoffService:
             caller_id=self._s.vobiz_caller_id or None,
             digits_match_bleg=self._hold_patterns,
             stream_extra_headers=headers,
+            stream_max_retries=self._s.vobiz_stream_max_retries,
         )
         state.status = DIALING
         self._forwarder.emit_call_event(
@@ -340,7 +342,8 @@ class HandoffService:
     def _return_to_ai_xml(self, call_id: str) -> str:
         base = validate_public_https_url(self._s.public_base_url)
         ws_url, headers = self._stream_ws_url(base, call_id, self._s.vobiz_stream_ws_path)
-        return build_bidirectional_stream_xml(ws_url, content_type=self._s.vobiz_inbound_content_type, extra_headers=headers)
+        return build_bidirectional_stream_xml(ws_url, content_type=self._s.vobiz_inbound_content_type, extra_headers=headers,
+                                              max_retries=self._s.vobiz_stream_max_retries)
 
     # ---- Vobiz callbacks --------------------------------------------------------------------------
 

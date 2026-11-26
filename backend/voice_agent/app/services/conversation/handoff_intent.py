@@ -64,10 +64,10 @@ _MONEY = {"cost", "price", "charge", "charges", "fee", "free", "much", "rate", "
 _NEGATION_PHRASES = ("do not", "don t", "no need", "not need", "don t need", "dont need")
 
 # --- Bangla (script) and Banglish (Latin script) ----------------------------------------------------------
-_BN_TARGETS = ("এজেন্ট", "এজেন্টের", "কাস্টমার কেয়ার", "কাস্টমার সার্ভিস", "প্রতিনিধি", "মানুষ", "মানুষের", "অপারেটর", "কর্মকর্তা", "হিউম্যান")
+_BN_TARGETS = ("এজেন্ট", "এজেন্টের", "কাস্টমার কেয়ার", "কাস্টমার সার্ভিস", "কাস্টমার সাপোর্ট", "প্রতিনিধি", "মানুষ", "মানুষের", "অপারেটর", "কর্মকর্তা", "হিউম্যান")
 _BN_VERBS = ("কথা", "বলতে", "সংযোগ", "কানেক্ট", "ট্রান্সফার", "দিন", "দেন", "চাই", "লাগবে")
 _BN_NEG = ("চাই না", "দরকার নেই", "লাগবে না", "না")
-_BL_TARGETS = ("agent", "manush", "manusher", "representative", "customer care", "human", "operator")
+_BL_TARGETS = ("agent", "manush", "manusher", "representative", "customer care", "customer support", "human", "operator")
 _BL_VERBS = ("kotha", "bolte", "bolbo", "connect", "transfer", "chai", "lagbe", "dao", "den", "koren", "korun")
 _BL_NEG = ("chai na", "lagbe na", "dorkar nei", "dorkar nai")
 

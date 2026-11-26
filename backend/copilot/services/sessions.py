@@ -4,8 +4,10 @@ import time
 from dataclasses import dataclass, field
 
 from copilot.models.participants import TRANSCRIPT_LABELS
+from copilot.services.language import detect as detect_language
 
 MAX_ANSWERS = 20
+LANGUAGE_RECENT_TURNS = 4  # live outputs follow the customer's latest lines, so a switch of language is picked up
 
 
 @dataclass
@@ -47,6 +49,12 @@ class CallSession:
     # on_hold | human_disconnected | ended. agent_mode: ai_agent | human_agent (None for typed calls).
     status: str = "in_progress"
     agent_mode: str | None = None
+
+    def language(self, last: int | None = LANGUAGE_RECENT_TURNS) -> str:
+        """bangla | banglish | english: what the customer speaks (their last `last` lines; None = the whole call).
+        Every line counts when the customer has not spoken yet."""
+        lines = [t.text for t in self.turns if t.speaker == "customer"] or [t.text for t in self.turns]
+        return detect_language(lines[-last:] if last else lines)
 
     def add_turn(self, speaker: str, text: str, ts: float | None = None) -> Turn:
         turn = Turn(id=len(self.turns) + 1, speaker=speaker, text=text, ts=ts or time.time())

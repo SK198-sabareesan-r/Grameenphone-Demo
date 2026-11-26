@@ -98,15 +98,18 @@ async def handle_transcript_event(c: Container, ev: TranscriptEventIn) -> str:
     if result == "duplicate":
         return result
 
-    if ev.transcript_type == "final":
-        await _record_final_in_contexts(c, ev, customer_id)
-
+    # The panel first: the line is already in transcript.json, and the context update below is another
+    # S3 upload that the live screen should not wait for. A retry of this event is a duplicate (above),
+    # so the line is never shown twice.
     pipeline = await _pipeline_for(c, ev.call_id)
     if pipeline is not None:
         try:
             await pipeline.ingest(ev.speaker, ev.transcript_type, ev.transcript_text, ev.timestamp.timestamp())
         except Exception:  # the panel must never make the voice agent retry an already stored event
             log.exception("voice_panel_update_failed call_id=%s", ev.call_id)
+
+    if ev.transcript_type == "final":
+        await _record_final_in_contexts(c, ev, customer_id)
     return result
 
 

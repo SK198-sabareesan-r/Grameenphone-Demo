@@ -156,13 +156,22 @@ class _Call:
         self.docs: dict[str, dict] = {}
         self.event_ids: dict[str, set[str]] = {}  # per document name that holds events
         self.sequences: dict[int, str] = {}  # transcript sequence_number -> event_id
+        self.dirty: set[str] = set()  # documents changed in memory but not yet written (partials only)
+        self.flush_task: asyncio.Task | None = None
 
 
 class ConversationStore:
-    def __init__(self, blobs: Any) -> None:
-        """`blobs` is a blob store (S3Blobs, MemoryBlobs), or a folder path, which means local files (tests)."""
+    def __init__(self, blobs: Any, *, partial_flush_s: float = 0.0) -> None:
+        """`blobs` is a blob store (S3Blobs, MemoryBlobs), or a folder path, which means local files (tests).
+
+        `partial_flush_s` > 0: a partial transcript event is kept in memory and written with the next final
+        event, or after this many seconds, or when the call is released, instead of one S3 upload per partial.
+        On a slow network one upload per partial queued every event of the call behind S3 and the live panel
+        stopped. Partials not yet written are lost if the process stops. 0 = write every event at once.
+        """
         self._blobs = LocalBlobs(Path(blobs)) if isinstance(blobs, (str, Path)) else blobs
         self._calls: dict[str, _Call] = {}
+        self._partial_flush_s = max(0.0, partial_flush_s)
 
     # ---- paths and loading -------------------------------------------------------------------
     def call_dir(self, call_id: str) -> Path:
@@ -209,7 +218,29 @@ class ConversationStore:
                                   if "sequence_number" in e}
         return call.docs[name]
 
+    def _schedule_flush(self, call: _Call, call_id: str) -> None:
+        if call.flush_task is None or call.flush_task.done():
+            call.flush_task = asyncio.create_task(self._flush_later(call, call_id), name=f"flush-{call_id}")
+
+    async def _flush_later(self, call: _Call, call_id: str) -> None:
+        await asyncio.sleep(self._partial_flush_s)
+        await self._flush(call, call_id)
+
+    async def _flush(self, call: _Call, call_id: str) -> None:
+        """Write documents that only have unsaved partials. A failure is logged; the next save retries."""
+        async with call.lock:
+            for name in list(call.dirty):
+                doc = call.docs.get(name)
+                if doc is None:
+                    call.dirty.discard(name)
+                    continue
+                try:
+                    await self._save(call, call_id, name, doc)
+                except StorageUnavailable:
+                    pass  # logged in _save; the partials of this document are lost, finals are retried by the sender
+
     async def _save(self, call: _Call, call_id: str, name: str, doc: dict) -> None:
+        call.dirty.discard(name)  # this write carries every change made so far, partials included
         try:
             await asyncio.to_thread(self._blobs.write, call_id, name, doc)
         except OSError as exc:
@@ -253,6 +284,10 @@ class ConversationStore:
             events.insert(bisect_right(keys, seq), record)
             ids.add(event["event_id"])
             call.sequences[seq] = event["event_id"]
+            if self._partial_flush_s > 0 and event.get("transcript_type") == "partial":
+                call.dirty.add(TRANSCRIPT)  # written with the next final, or by the timer
+                self._schedule_flush(call, call_id)
+                return "stored"
             await self._save(call, call_id, TRANSCRIPT, doc)
             return "stored"
 
@@ -324,7 +359,11 @@ class ConversationStore:
     async def release(self, call_id: str) -> None:
         """Drop the in-memory copy of a finished call. The files stay."""
         call = self._calls.get(call_id)
-        if call is not None and not call.lock.locked():
+        if call is None:
+            return
+        if call.dirty:  # a pending timer then finds nothing left to write
+            await self._flush(call, call_id)  # write the last partials before the memory copy goes
+        if not call.lock.locked():
             self._calls.pop(call_id, None)
 
     async def handoff_package(self, call_id: str) -> dict:

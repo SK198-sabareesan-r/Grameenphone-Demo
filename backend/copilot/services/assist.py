@@ -12,6 +12,7 @@ import re
 
 from config.settings import Settings
 from copilot.repo.base import DataUnavailable, Repo
+from copilot.services import language
 from copilot.services.bedrock import BedrockClient
 from copilot.services.hub import PanelHub
 from copilot.services.kb_retriever import KnowledgeRetriever, KnowledgeUnavailable
@@ -23,6 +24,21 @@ log = logging.getLogger(__name__)
 
 SYSTEM = "You help a contact-centre agent during a live call and reply with JSON only."
 NOT_FOUND = "Not found in the approved knowledge or the customer's data. Check with a supervisor."
+NOT_FOUND_TEXTS = {
+    language.ENGLISH: NOT_FOUND,
+    language.BANGLA: "অনুমোদিত তথ্য বা গ্রাহকের ডেটায় এটি পাওয়া যায়নি। একজন সুপারভাইজারের সাথে যাচাই করুন।",
+    language.BANGLISH: "Approved knowledge ba customer er data te eta pawa jayni. Ekjon supervisor er sathe check korun.",
+}
+# How an answer that uses the customer's data starts while the identity check is not done.
+VERIFY_PREFIX = {
+    language.ENGLISH: "After verifying identity:",
+    language.BANGLA: "পরিচয় যাচাই করার পর:",
+    language.BANGLISH: "Porichoy jachai korar por:",
+}
+
+
+def not_found(session: "CallSession | None") -> str:
+    return language.pick(NOT_FOUND_TEXTS, session.language()) if session is not None else NOT_FOUND
 CONFIDENCE_LEVELS = {"high", "medium", "low"}
 MAX_ANSWER_CHARS = 600
 SHORT_SENTENCE_WORDS = 5  # shorter sentences are searched together with the customer's previous one
@@ -142,6 +158,7 @@ class LiveAssist:
         self, session: CallSession, turn: Turn, articles: list[Article], packs: list[dict], centres: list[dict],
         kb_down: bool = False,
     ) -> dict:
+        call_language = session.language()  # the customer's latest lines, this sentence included
         prompt = render_prompt(
             self._template,
             number_confirmed="yes" if session.identity_confirmed else "no",
@@ -153,6 +170,9 @@ class LiveAssist:
             articles=self._articles_block(articles, kb_down),
             transcript=session.transcript_text(last=8),
             question=turn.text,
+            language=language.NAMES[call_language],
+            language_rule=language.rule(call_language),
+            verify_prefix=language.pick(VERIFY_PREFIX, call_language),
         )
         try:
             raw = await asyncio.wait_for(
@@ -210,7 +230,7 @@ class LiveAssist:
             "turn_id": turn.id,
             "question": turn.text,
             "needs_lookup": True,
-            "answer": answer or (None if clarify else NOT_FOUND),
+            "answer": answer or (None if clarify else not_found(session)),
             "sources": [allowed[i].public_view() for i in ids],
             "used_customer_data": raw.get("used_customer_data") is True,
             "confidence": confidence if confidence in CONFIDENCE_LEVELS else "low",

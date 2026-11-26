@@ -64,6 +64,7 @@ class RealtimeSttConfig:
     backoff_max_s: float = 8.0
     end_timeout_s: float = 10.0  # wait for session.end after sending {"event":"end"}
     max_message_bytes: int = 1 << 20
+    silence_duration_ms: int = 0  # 0 = not sent (Sarvam default 1000 ms); endpointing=vad only
 
     @classmethod
     def from_settings(cls, s: Settings) -> "RealtimeSttConfig":
@@ -81,6 +82,7 @@ class RealtimeSttConfig:
             connect_timeout_s=s.sarvam_stt_connect_timeout_s,
             keepalive_interval_s=s.sarvam_stt_keepalive_interval_s,
             max_reconnect_attempts=s.sarvam_stt_max_reconnect_attempts,
+            silence_duration_ms=s.sarvam_stt_silence_duration_ms,
         ).validated()
 
     def validated(self) -> "RealtimeSttConfig":
@@ -109,6 +111,8 @@ class RealtimeSttConfig:
             problems.append("timeouts and keepalive interval must be positive")
         if not 0 <= self.max_reconnect_attempts <= 10:
             problems.append("max_reconnect_attempts must be 0-10")
+        if self.silence_duration_ms and not 200 <= self.silence_duration_ms <= 5000:
+            problems.append("SARVAM_STT_SILENCE_DURATION_MS must be 0 (default) or 200-5000")
         if problems:
             raise SarvamConfigError("Invalid Sarvam realtime STT config: " + "; ".join(problems))
         return self
@@ -123,6 +127,12 @@ class RealtimeSttConfig:
         return self.sample_rate * self.chunk_ms // 1000 * self.bytes_per_sample
 
     def query_params(self) -> dict[str, str]:
+        params = self._base_params()
+        if self.silence_duration_ms and self.endpointing == "vad":
+            params["silence_duration_ms"] = str(self.silence_duration_ms)
+        return params
+
+    def _base_params(self) -> dict[str, str]:
         return {
             "model": self.model,
             "language_code": self.language_code,

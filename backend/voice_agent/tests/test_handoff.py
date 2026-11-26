@@ -333,7 +333,7 @@ async def test_asking_for_a_human_announces_then_transfers_and_the_ai_does_not_a
     service, rec, conv, vobiz = make_service()
     assert service.phrase_trigger(CALL, "Can I contact human agent?") is True  # swallowed: no LLM answer
     await settle(lambda: vobiz.requests)
-    assert conv.said == [(CALL, "Please hold on. I am connecting you to a human agent.")]  # announced before the transfer
+    assert conv.said == [(CALL, "Please hold on. I am connecting you to customer support.")]  # announced before the transfer
     assert conv.suspended == [CALL]
     assert vobiz.requests[0]["operation"] == "transfer_call"  # the Vobiz transfer really was invoked
     started = rec.data("human_handoff_requested")
@@ -614,7 +614,7 @@ async def test_a_customer_asking_for_a_human_gets_the_announcement_then_the_tran
     await live.ack()  # the announcement is played to the customer
     await settle(lambda: live.vobiz.requests)
     assert live.llm.calls == []  # the model never saw the sentence, so it cannot answer "call 121"
-    assert live.tts.texts[-1] == "Please hold on. I am connecting you to a human agent."
+    assert live.tts.texts[-1] == "Please hold on. I am connecting you to customer support."
     assert live.vobiz.requests[0]["operation"] == "transfer_call"
     assert live.rec.kinds() == ["human_handoff_requested"]
     assert live.mgr.conversation(CALL).suspended

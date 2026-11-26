@@ -231,7 +231,9 @@ class CopilotEventForwarder:
             return
         final = event.type == TRANSCRIPT_FINAL
         if final:
-            key = (event.stream_id, event.track, event.utterance_idx if event.utterance_idx is not None else event.sequence)
+            # stt_request_id: utterance_idx restarts at 0 on each new Sarvam session (after a reconnect).
+            key = (event.stream_id, event.track, event.stt_request_id,
+                   event.utterance_idx if event.utterance_idx is not None else event.sequence)
             if key in call.seen_finals:
                 call.duplicates += 1
                 logger.info("copilot_forward_duplicate_final", extra={"call_id": call.call_id})

@@ -68,7 +68,7 @@ I found no separate supervisor live screen. A supervisor either opens the panel 
 | Run | Script CP1, exchanges 1 to 4. |
 | Agent sees | After line 2: the "where are you now" prompt and a lookup that asks for the mobile number. After the number: Rahim's card, "maintenance until 6:00 PM today", suggestion "Apologise and give the fix time". After lines 9 and 10: compliance red then green. After line 12: suggestion ticked, mood easing. |
 | Supervisor sees | The same panel. Later, the call record with frustrated moods and no ticket. |
-| Pass checks | Card shows Rahim, Mirpur, Tk 120, 25 GB with 18 GB left. Notice text matches. The first answer begins "After verifying identity:" and later ones do not. No answer says the network is fine. No ticket exists. |
+| Pass checks | Card shows Rahim, Mirpur, Tk 120, 25 GB with 18 GB left. Notice text matches. The first answer begins with the identity prefix in the call's language ("Porichoy jachai korar por:" for Banglish, "After verifying identity:" for English) and later ones do not. No answer says the network is fine. No ticket exists. |
 | If it goes wrong | No card: say the number again, one digit word at a time. Slow answer: wait for the ticking spinner, or use the manual look-up control for the latest customer sentence. |
 
 ## CP2 - Bill dispute (Nusrat Jahan): the postpaid verification gap

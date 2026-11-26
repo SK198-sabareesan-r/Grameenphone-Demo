@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from config.settings import Settings
+from copilot.services import language
 from copilot.services.bedrock import BedrockClient
 from copilot.services.hub import PanelHub
 from copilot.services.nba import NbaCatalog
@@ -16,6 +17,12 @@ CUSTOMER_MOODS = {"calm", "neutral", "frustrated", "angry"}
 AGENT_MOODS = {"calm", "neutral", "rushed", "empathetic"}
 SYSTEM = "You analyse live customer-service calls and reply with JSON only."
 ANGRY_TIP = "Acknowledge the repeated complaint, give a ticket number and a clear time."
+# The keyword fallback's tip, in the language the customer speaks.
+ANGRY_TIPS = {
+    language.ENGLISH: ANGRY_TIP,
+    language.BANGLA: "বারবার একই অভিযোগের কথা স্বীকার করুন, একটি টিকেট নম্বর এবং পরিষ্কার সময় জানান।",
+    language.BANGLISH: "Barbar eki obhijoger kotha shikar korun, ekta ticket number ar porishkar shomoy janan.",
+}
 
 
 class TurnAnalyzer:
@@ -62,6 +69,8 @@ class TurnAnalyzer:
             nba=self._nba.llm_view(),
             shown=list(session.suggestions),
             transcript=session.transcript_text(last=12),
+            language=language.NAMES[session.language()],
+            language_rule=language.rule(session.language()),
         )
 
     def _fallback(self, session: CallSession) -> dict:
@@ -74,7 +83,7 @@ class TurnAnalyzer:
         return {
             "customer_mood": mood,
             "agent_mood": "neutral",
-            "tip": ANGRY_TIP if mood == "angry" else None,
+            "tip": language.pick(ANGRY_TIPS, session.language()) if mood == "angry" else None,
             "suggestion_id": None,
         }
 

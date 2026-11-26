@@ -12,14 +12,13 @@ import { usePanelStream } from "./hooks/usePanelStream";
 // closes on sign-out.
 function Console({ auth }) {
   const [view, setView] = useState("live");
-  const { call, connected } = usePanelStream();
+  const { call } = usePanelStream();
 
   return (
     <div className="app">
       <Header
         view={view}
         onChange={setView}
-        connected={connected}
         user={auth.user}
         onSignOut={auth.signOut}
       />

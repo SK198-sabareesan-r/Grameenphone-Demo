@@ -203,7 +203,7 @@ async def test_an_unresolved_call_is_transferred_after_the_configured_attempts_w
     requested = call.rec.data("human_handoff_requested")
     assert requested["requested_by"] == "ai_unresolved" and requested["reason"].startswith("ai_unresolved (troubleshooting_exhausted")
     assert [d["attempt"] for _, k, d in call.rec.events if k == "ai_resolution_attempt"] == [1, 2]
-    assert call.tts.texts[-1] == "Please hold on. I am connecting you to a human agent."
+    assert call.tts.texts[-1] == "Please hold on. I am connecting you to customer support."
     assert call.mgr.conversation(CALL).suspended
 
 

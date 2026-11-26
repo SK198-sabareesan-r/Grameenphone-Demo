@@ -4,7 +4,7 @@ const TABS = [
   { id: "dashboard", label: "Adoption dashboard" },
 ];
 
-export default function Header({ view, onChange, connected, user, onSignOut }) {
+export default function Header({ view, onChange, user, onSignOut }) {
   return (
     <header className="gp-header">
       <div className="brand">
@@ -26,9 +26,6 @@ export default function Header({ view, onChange, connected, user, onSignOut }) {
         ))}
       </nav>
       <div className="header-status">
-        <span className={`pill ${connected ? "pill-ok" : "pill-warn"}`}>
-          {connected ? "Connected" : "Connecting…"}
-        </span>
         {user && (
           <span className="pill" title={`Signed in as ${user.username} (${user.role})`}>
             {user.name}

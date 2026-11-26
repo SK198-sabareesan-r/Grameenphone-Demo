@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     s3_knowledge_prefix: str = "knowledge/pdf"
     dynamodb_table_prefix: str = "gp-copilot-"
     dynamodb_timeout_s: float = 4.0
+    # Partial transcript lines are uploaded to S3 with the next final line or after this many seconds,
+    # not one upload each (that stalled the live panel on a slow network). 0 = upload every line at once.
+    conversation_partial_flush_s: float = 2.0
 
     # Where the Copilot's data lives
     data_backend: str = "dynamodb"  # dynamodb | files

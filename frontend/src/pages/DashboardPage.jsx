@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 
 function Kpi({ label, value, detail }) {
@@ -11,10 +11,20 @@ function Kpi({ label, value, detail }) {
   );
 }
 
-function MoodTrend({ rows }) {
+function trendTitle(rows, range) {
+  if (!range || (!range.from_date && !range.to_date) || rows.length === 0) return "Customer mood, last 7 days";
+  if (rows.length === 1) return `Customer mood, ${rows[0].day}`;
+  return `Customer mood, ${rows[0].day} to ${rows[rows.length - 1].day}`;
+}
+
+function MoodTrend({ rows, range }) {
+  const filtered = range && (range.from_date || range.to_date);
   return (
     <div className="card">
-      <h2>Customer mood, last 7 days</h2>
+      <h2>{trendTitle(rows, range)}</h2>
+      {filtered && range.from_date && rows.length > 0 && rows[0].date > range.from_date && (
+        <p className="muted small">The range is longer than {rows.length} days, so the bars show its last {rows.length} days.</p>
+      )}
       {rows.map((row) => (
         <div className="trend-row" key={row.date}>
           <span className="trend-day">{row.day}</span>
@@ -67,9 +77,34 @@ function SourceNote({ source }) {
 }
 
 // What the dashboard shows for the numbers it was given. Nothing here is sample data.
-export function DashboardView({ data, loading, onRefresh }) {
+const NO_DATES = { fromDate: "", toDate: "" };
+
+function DateFilter({ dates, onChange }) {
+  const set = (key) => (e) => onChange({ ...dates, [key]: e.target.value });
+  const changed = dates.fromDate !== "" || dates.toDate !== "";
+  return (
+    <form className="ticket-filters dashboard-filters" onSubmit={(e) => e.preventDefault()}>
+      <label>
+        From
+        <input type="date" value={dates.fromDate} max={dates.toDate || undefined} onChange={set("fromDate")} />
+      </label>
+      <label>
+        To
+        <input type="date" value={dates.toDate} min={dates.fromDate || undefined} onChange={set("toDate")} />
+      </label>
+      <div className="ticket-filter-actions">
+        <button className="btn btn-ghost" type="button" onClick={() => onChange(NO_DATES)} disabled={!changed}>
+          All dates
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function DashboardView({ data, loading, onRefresh, dates = NO_DATES, onDatesChange }) {
   const { kpis } = data;
   const rate = kpis.acceptance_rate === null ? "\u2013" : `${kpis.acceptance_rate}%`;
+  const filtered = dates.fromDate !== "" || dates.toDate !== "";
   return (
     <div className="dashboard">
       <div className="card-head dashboard-head">
@@ -78,15 +113,22 @@ export function DashboardView({ data, loading, onRefresh }) {
           {loading ? "Refreshing\u2026" : "Refresh"}
         </button>
       </div>
+      {onDatesChange && <DateFilter dates={dates} onChange={onDatesChange} />}
       <div className="kpi-grid">
         <Kpi label="Calls that used Copilot" value={kpis.calls_with_copilot} />
         <Kpi label="Suggestions shown" value={kpis.suggestions_shown} />
         <Kpi label="Suggestions accepted" value={rate} detail={`${kpis.suggestions_accepted} of ${kpis.suggestions_shown}`} />
         <Kpi label="Tickets raised from calls" value={kpis.tickets_raised} />
       </div>
-      {kpis.calls_with_copilot === 0 && <p className="empty">No calls have been saved yet. The numbers fill in as calls are made and ended.</p>}
+      {kpis.calls_with_copilot === 0 && (
+        <p className="empty">
+          {filtered
+            ? "No saved calls started on these dates (Bangladesh time)."
+            : "No calls have been saved yet. The numbers fill in as calls are made and ended."}
+        </p>
+      )}
       <div className="dash-grid">
-        <MoodTrend rows={data.mood_trend} />
+        <MoodTrend rows={data.mood_trend} range={data.range} />
         <TopSuggestions rows={data.top_suggestions} />
       </div>
       <SourceNote source={data.source} />
@@ -99,24 +141,33 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [dates, setDates] = useState(NO_DATES);
+  const latest = useRef(0); // only the answer to the newest request is shown
 
   const load = useCallback(async () => {
+    const id = ++latest.current;
     setLoading(true);
     setError("");
     try {
-      setData(await api.dashboard());
+      const result = await api.dashboard(dates);
+      if (id === latest.current) setData(result);
     } catch (e) {
-      setError(e.message);
+      if (id === latest.current) setError(e.message);
     } finally {
-      setLoading(false);
+      if (id === latest.current) setLoading(false);
     }
-  }, []);
+  }, [dates]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  if (error) return <p className="error">{error}</p>;
+  if (!data && error) return <p className="error">{error}</p>;
   if (!data) return <p className="muted">Loading&hellip;</p>;
-  return <DashboardView data={data} loading={loading} onRefresh={load} />;
+  return (
+    <>
+      {error && <p className="error">{error}</p>}
+      <DashboardView data={data} loading={loading} onRefresh={load} dates={dates} onDatesChange={setDates} />
+    </>
+  );
 }

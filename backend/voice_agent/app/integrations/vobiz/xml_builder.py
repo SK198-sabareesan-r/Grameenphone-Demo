@@ -42,6 +42,15 @@ def _format_extra_headers(extra_headers: Mapping[str, str]) -> str:
     return text
 
 
+def _add_max_retries(attributes: dict[str, str], max_retries: int) -> None:
+    """<Stream maxRetries>: reconnect attempts when the WebSocket drops mid-stream (Vobiz default 0, max 10)."""
+    retries = int(max_retries)
+    if not 0 <= retries <= 10:
+        raise ValueError("maxRetries must be 0-10")
+    if retries:
+        attributes["maxRetries"] = str(retries)
+
+
 def build_bidirectional_stream_xml(
     ws_url: str,
     *,
@@ -49,6 +58,7 @@ def build_bidirectional_stream_xml(
     keep_call_alive: bool = True,
     allow_insecure: bool = False,
     extra_headers: Mapping[str, str] | None = None,
+    max_retries: int = 0,
 ) -> str:
     """Return VobizXML that starts a bidirectional audio stream to `ws_url`.
 
@@ -68,6 +78,7 @@ def build_bidirectional_stream_xml(
     }
     if extra_headers:
         attributes["extraHeaders"] = _format_extra_headers(extra_headers)
+    _add_max_retries(attributes, max_retries)
 
     response = ET.Element("Response")
     stream = ET.SubElement(response, "Stream", attributes)
@@ -90,6 +101,7 @@ def build_handoff_xml(
     digits_match_bleg: tuple[str, ...] = (),
     stream_extra_headers: Mapping[str, str] | None = None,
     allow_insecure: bool = False,
+    stream_max_retries: int = 0,
 ) -> str:
     """VobizXML for a transferred call: fork BOTH audio tracks to a one-way monitor stream, then dial a human.
 
@@ -117,6 +129,7 @@ def build_handoff_xml(
     }
     if stream_extra_headers:
         stream_attrs["extraHeaders"] = _format_extra_headers(stream_extra_headers)
+    _add_max_retries(stream_attrs, stream_max_retries)
     dial_attrs = {
         "action": action_url,
         "method": "POST",

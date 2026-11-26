@@ -66,7 +66,10 @@ class Container:
 def build_conversation_store(settings: Settings) -> ConversationStore:
     """Where the live conversation documents of voice calls are kept. Never the local disk in normal use."""
     if settings.s3_transcript_bucket:
-        return ConversationStore(S3Blobs(settings, settings.s3_transcript_bucket, settings.s3_live_prefix))
+        return ConversationStore(
+            S3Blobs(settings, settings.s3_transcript_bucket, settings.s3_live_prefix),
+            partial_flush_s=settings.conversation_partial_flush_s,
+        )
     if settings.conversations_dir:  # set on purpose, by the tests
         return ConversationStore(settings.conversations_dir)
     log.warning("S3_TRANSCRIPT_BUCKET is not set: voice-call conversations are kept in memory and lost on restart.")
@@ -110,7 +113,7 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
         ask=AskCopilot(settings, bedrock, retriever),
         tickets=TicketService(settings, repo),
         storage=storage,
-        dashboard=DashboardService(storage),
+        dashboard=DashboardService(storage, titles={i: r["title"] for i, r in nba.rules.items()}),
         auth=AuthService(settings),
         conversations=build_conversation_store(settings),
     )

@@ -231,7 +231,7 @@ The words "dam" and "meyad" (Banglish for price and validity) are NOT in the lis
 | `summary.md` | After-call note | yes | no | no | no | problem, checked, outcome, follow_up, category, subject |
 | `kb_query.md` | Rewrite sentence to English query | no | no | no | no | query (switched off) |
 
-Rules inside `live_assist.md`: if identity is not green the answer must start with "After verifying identity:"; never say the network is working when the notice is `no_notice`; quote pack price and validity exactly; "none published" means no code; say "sample offer" when flagged; a centre marked sample is "a placeholder, not a real address"; articles marked mock must be called demo policies; never invent codes, prices, dates, policies or account details.
+Rules inside `live_assist.md`: if identity is not green the answer must start with the identity prefix in the call's language ("After verifying identity:" / "পরিচয় যাচাই করার পর:" / "Porichoy jachai korar por:"); never say the network is working when the notice is `no_notice`; quote pack price and validity exactly; "none published" means no code; say "sample offer" when flagged; a centre marked sample is "a placeholder, not a real address"; articles marked mock must be called demo policies; never invent codes, prices, dates, policies or account details.
 
 ### 3.3 Order of events in a call
 

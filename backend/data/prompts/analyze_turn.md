@@ -24,7 +24,7 @@ Recent transcript (oldest first):
 Decide the following from the latest state of the call.
 - customer_mood: one of "calm", "neutral", "frustrated", "angry".
 - agent_mood: one of "calm", "neutral", "rushed", "empathetic".
-- tip: one short sentence of advice for the agent in English, or null. Give a tip when the customer is frustrated or angry (acknowledge the repeated complaint, give a ticket number and a clear time).
+- tip: one short sentence of advice for the agent, or null. Write the tip in {{language}}, the language the customer is speaking: {{language_rule}} Give a tip when the customer is frustrated or angry (acknowledge the repeated complaint, give a ticket number and a clear time).
 - suggestion_id: an id from the allowed list that fits the current moment, or null. Do not repeat an id that was already shown. Do not suggest a sales offer while the customer is angry or the main problem is unresolved.
 
 Return only one JSON object, with no other text:

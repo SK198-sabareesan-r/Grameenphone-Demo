@@ -100,7 +100,9 @@ they become a path, and no tokens or full phone numbers are written. The folder 
 
 * One backend process only: the locks are in-process. Two workers would race on the same files.
 * Every event rewrites its whole file. Fine for a call of a few thousand events; use append-only storage for more.
-* Partials are kept (as requested), so `transcript.json` grows with speech time.
+* Partials are kept (as requested), so `transcript.json` grows with speech time. With the S3 store they are
+  uploaded with the next final line, after `CONVERSATION_PARTIAL_FLUSH_S` (default 2 s), or at call end, not
+  one upload per partial. Partials not yet uploaded are lost if the Copilot process stops.
 * No retention, encryption at rest or access control beyond the file system. Transcripts are personal data.
 * The panel shows one call at a time (the existing `SessionRegistry`); a second simultaneous call replaces it on screen
   (the JSON for both is complete).

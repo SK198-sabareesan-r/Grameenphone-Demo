@@ -101,7 +101,8 @@ def create_router(settings: Settings) -> APIRouter:
             dev_capture.register_if_test_call(call.call_uuid, call.to_number)
 
         base = validate_public_https_url(app_settings.public_base_url)
-        token = issue_stream_token(app_settings.vobiz_auth_token.get_secret_value(), call.call_uuid)
+        token = issue_stream_token(app_settings.vobiz_auth_token.get_secret_value(), call.call_uuid,
+                                   ttl_s=app_settings.vobiz_stream_token_ttl_s)
         ws_path = f"{app_settings.vobiz_stream_ws_path.rstrip('/')}/{quote(call.call_uuid, safe='')}"
         ws_base = https_to_wss(join_public_url(base, ws_path))
         if app_settings.vobiz_ws_auth_mode == "start_event":
@@ -114,6 +115,7 @@ def create_router(settings: Settings) -> APIRouter:
                 ws_url,
                 content_type=app_settings.vobiz_inbound_content_type,
                 extra_headers=extra_headers,
+                max_retries=app_settings.vobiz_stream_max_retries,
             )
         except ValueError as exc:
             raise VobizConfigError(f"Cannot build stream XML: {exc}") from exc

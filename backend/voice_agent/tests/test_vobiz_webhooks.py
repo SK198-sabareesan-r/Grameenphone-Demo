@@ -89,6 +89,7 @@ def test_valid_answer_webhook_returns_vobizxml(lax: TestClient) -> None:
         "audioTrack": "inbound",
         "keepCallAlive": "true",
         "contentType": "audio/x-l16;rate=16000",
+        "maxRetries": "5",  # Vobiz reconnects a dropped stream (VOBIZ_STREAM_MAX_RETRIES)
     }
     url = urlsplit(stream.text)
     assert url.scheme == "wss" and url.netloc == "abc.ngrok.app"

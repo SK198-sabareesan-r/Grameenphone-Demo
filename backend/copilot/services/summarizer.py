@@ -4,6 +4,7 @@ import logging
 
 from config.settings import Settings
 from copilot.models.schemas import TICKET_CATEGORIES
+from copilot.services import language
 from copilot.services.bedrock import BedrockClient
 from copilot.services.hub import PanelHub
 from copilot.services.sessions import CallSession
@@ -11,7 +12,7 @@ from copilot.services.storage import CallStorage
 from copilot.utils.helpers import read_text, render_prompt
 
 log = logging.getLogger(__name__)
-SYSTEM = "You write concise after-call notes and reply with JSON only."
+SYSTEM = "You write concise after-call notes in the language of the call and reply with JSON only."
 EMPTY_DRAFT = {
     "problem": "",
     "checked": "",
@@ -41,11 +42,14 @@ class CallSummarizer:
         await self._hub.broadcast("summary", draft)
 
     async def _generate(self, session: CallSession) -> dict:
+        call_language = session.language(last=None)  # the note covers the whole call
         prompt = render_prompt(
             self._template,
             customer=session.customer,
             transcript=session.transcript_text(),
             categories=", ".join(TICKET_CATEGORIES),
+            language=language.NAMES[call_language],
+            language_rule=language.rule(call_language),
         )
         try:
             result = await self._bedrock.complete_json(self._model, SYSTEM, prompt, max_tokens=700)

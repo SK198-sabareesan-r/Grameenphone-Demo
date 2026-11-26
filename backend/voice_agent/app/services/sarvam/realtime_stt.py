@@ -184,6 +184,10 @@ class SarvamRealtimeSttClient:
         return self.state == OPEN
 
     @property
+    def auto_reconnect(self) -> bool:
+        return self._auto_reconnect
+
+    @property
     def _ids(self) -> dict[str, Any]:
         return {"request_id": self.request_id, "model": self._config.model}
 

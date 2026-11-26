@@ -84,7 +84,7 @@ Expected Copilot:
 Expected Copilot:
 - Number detected and customer card loads: Rahim Uddin, Prepaid, Standard, Mirpur, Tk 120, pack 25 GB with 18 GB left until 05 Dec, two recharges.
 - The registered-area notice appears: maintenance in Mirpur until 6:00 PM today.
-- The network lookup re-runs by itself now that the card is known. Expected answer (wording varies): starts with "After verifying identity:" (identity not green yet), says Mirpur has maintenance until 6:00 PM today, tells the agent to apologise, give the fix time and check where the customer is now. Sources: network-outage-goodwill (mock) and/or internet-troubleshooting.
+- The network lookup re-runs by itself now that the card is known. Expected answer (wording varies): starts with "Porichoy jachai korar por:" (identity not green yet; the answer is in Banglish like the call), says Mirpur has maintenance until 6:00 PM today, tells the agent to apologise, give the fix time and check where the customer is now. Sources: network-outage-goodwill (mock) and/or internet-troubleshooting.
 - Suggestion appears: "Apologise and give the fix time" (nba-network-apology).
 
 ### Exchange 3 - location and identity
@@ -101,7 +101,7 @@ Expected Copilot:
 - Current location set to Mirpur. Both statuses show the same maintenance notice.
 - After line 9: compliance shows RED "Verify identity first".
 - After line 10: it turns GREEN "Identity checked". The customer's answer matches the card (Tk 200, 20 Nov). The Copilot does not compare it; the agent does.
-- Later answers no longer start with "After verifying identity:".
+- Later answers no longer start with "Porichoy jachai korar por:".
 
 ### Exchange 4 - fix time and next steps
 
@@ -558,7 +558,7 @@ What the KB does not say: **how to block a lost SIM.** The article says "Do not 
 Expected Copilot:
 - The card loads from the number. The agent reads nothing from it yet.
 - Suggestion "Verify identity, then block the SIM" appears with only the Chattogram placeholder centre.
-- The lookup answer starts with "After verifying identity:" and reminds the agent of the order verify, block, replace. Source: sim-replacement.
+- The lookup answer starts with the identity prefix in the call's language ("Porichoy jachai korar por:" in Banglish) and reminds the agent of the order verify, block, replace. Source: sim-replacement.
 - The Copilot must not state as fact that this customer's SIM is lost.
 
 ### Exchange 2 - verify, then block

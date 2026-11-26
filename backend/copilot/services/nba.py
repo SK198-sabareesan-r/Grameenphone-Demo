@@ -9,6 +9,7 @@ from pathlib import Path
 
 from copilot.models.participants import SUGGESTION_SPEAKERS
 from copilot.repo.base import DataUnavailable, Repo
+from copilot.services import language
 from copilot.services.sessions import CallSession
 from copilot.utils.helpers import contains_any, load_json
 
@@ -32,10 +33,12 @@ class NbaCatalog:
         rule = self.rules.get(suggestion_id or "")
         if not rule or suggestion_id in session.suggestions:
             return False
+        lang = session.language()  # shown in the language the customer is speaking (English when no translation)
+        suffix = "" if lang == language.ENGLISH else f"_{lang}"
         session.suggestions[rule["id"]] = {
             "id": rule["id"],
-            "title": rule["title"],
-            "text": rule["text"],
+            "title": rule.get(f"title{suffix}") or rule["title"],
+            "text": rule.get(f"text{suffix}") or rule["text"],
             "source": rule["source"],
             "used": self._said_recently(session, rule),
             **await self._details(session, rule),

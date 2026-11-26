@@ -3,7 +3,7 @@
 import pytest
 
 from config.settings import BASE_DIR
-from copilot.services.analyzer import ANGRY_TIP
+from copilot.services.analyzer import ANGRY_TIPS
 from copilot.services.nba import NbaCatalog
 from copilot.services.pipeline import ensure_pipeline
 from copilot.services.sessions import CallSession
@@ -93,7 +93,8 @@ async def test_bedrock_failure_falls_back_to_keyword_mood_without_a_suggestion(c
     pipeline = await ensure_pipeline(container)
     await pipeline.ingest("customer", "final", "Prottek bar eki kotha, kono kaj hoy na!")
     await settle(lambda: pipeline.session.mood_history)
-    assert pipeline.session.mood == {"customer": "angry", "agent": "neutral", "tip": ANGRY_TIP}
+    # The customer speaks Banglish, so the fallback tip is in Banglish too.
+    assert pipeline.session.mood == {"customer": "angry", "agent": "neutral", "tip": ANGRY_TIPS["banglish"]}
     assert pipeline.session.suggestions == {}
     assert events.of("mood")[-1]["customer"] == "angry"
 

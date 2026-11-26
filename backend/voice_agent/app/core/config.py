@@ -43,6 +43,11 @@ class Settings(BaseModel):
     sarvam_stt_endpointing: str = "vad"
     sarvam_stt_return_timestamps: bool = True
     sarvam_stt_chunk_ms: int = 100  # audio_input size: 100 ms = 3,200 bytes at 16 kHz linear16
+    # Silence (ms) that ends a turn with endpointing=vad. 0 = Sarvam's default (1000 ms).
+    sarvam_stt_silence_duration_ms: int = 0
+    # With SARVAM_STT_LANGUAGE_CODE=auto: languages whose transcripts are kept (comma separated). Anything else Sarvam
+    # detects is not shown or used. Empty = keep every language.
+    stt_allowed_languages: str = "bn-IN,en-IN"
     sarvam_stt_connect_timeout_s: float = 10.0  # handshake + session.begin
     sarvam_stt_keepalive_interval_s: float = 20.0  # app-level {"event":"ping"} when idle (server idles out at 60 s)
     sarvam_stt_max_reconnect_attempts: int = 3
@@ -68,6 +73,11 @@ class Settings(BaseModel):
     vobiz_monitor_ws_path: str = "/ws/vobiz/monitor"
     # Inbound audio format requested from Vobiz: audio/x-l16;rate=8000|16000 or audio/x-mulaw;rate=8000
     vobiz_inbound_content_type: str = "audio/x-l16;rate=16000"
+    # <Stream maxRetries>: Vobiz reconnects a dropped stream WebSocket this many times (0-10). Vobiz's default
+    # is 0, so one network blip used to end the live transcript for the rest of the call.
+    vobiz_stream_max_retries: int = 5
+    # Lifetime of the token in the stream URL. Vobiz reconnects with the same URL, so it must outlive the call.
+    vobiz_stream_token_ttl_s: int = 14400
 
     # --- Vobiz WebSocket server (Milestone 3) ---
     # "query": token in the stream URL (?token=...). "start_event": token sent via <Stream extraHeaders>
@@ -160,7 +170,7 @@ class Settings(BaseModel):
     human_agent_phone: str = ""
     human_handoff_dial_timeout_s: int = 30  # how long the human agent's phone may ring
     # Said to the customer before the transfer. Empty = no announcement (the AI just goes quiet).
-    human_handoff_announcement: str = "Please hold on. I am connecting you to a human agent."
+    human_handoff_announcement: str = "Please hold on. I am connecting you to customer support."
     human_handoff_announcement_timeout_s: float = 8.0  # do not keep the customer waiting longer than this for it
     # Optional: customer says one of these (comma separated, lower case) and the AI hands off. Empty = off.
     human_handoff_phrases: str = ""
@@ -256,6 +266,8 @@ class Settings(BaseModel):
             sarvam_stt_return_timestamps=get("SARVAM_STT_RETURN_TIMESTAMPS", "true").lower()
             not in ("0", "false", "no"),
             sarvam_stt_chunk_ms=int(get("SARVAM_STT_CHUNK_MS", "100")),
+            sarvam_stt_silence_duration_ms=int(get("SARVAM_STT_SILENCE_DURATION_MS", "0")),
+            stt_allowed_languages=env.get("STT_ALLOWED_LANGUAGES", "bn-IN,en-IN"),
             sarvam_stt_connect_timeout_s=float(get("SARVAM_STT_CONNECT_TIMEOUT_S", "10")),
             sarvam_stt_keepalive_interval_s=float(get("SARVAM_STT_KEEPALIVE_INTERVAL_S", "20")),
             sarvam_stt_max_reconnect_attempts=int(get("SARVAM_STT_MAX_RECONNECT_ATTEMPTS", "3")),
@@ -284,6 +296,8 @@ class Settings(BaseModel):
                 "VOBIZ_INBOUND_CONTENT_TYPE", "audio/x-l16;rate=16000"
             ),
             vobiz_ws_auth_mode=get("VOBIZ_WS_AUTH_MODE", "query").lower(),
+            vobiz_stream_max_retries=min(10, max(0, int(get("VOBIZ_STREAM_MAX_RETRIES", "5")))),
+            vobiz_stream_token_ttl_s=max(900, int(get("VOBIZ_STREAM_TOKEN_TTL_S", "14400"))),
             vobiz_ws_max_connections=int(get("VOBIZ_WS_MAX_CONNECTIONS", "100")),
             vobiz_ws_queue_frames=int(get("VOBIZ_WS_QUEUE_FRAMES", "500")),
             vobiz_ws_max_message_bytes=int(get("VOBIZ_WS_MAX_MESSAGE_BYTES", "262144")),
@@ -338,7 +352,7 @@ class Settings(BaseModel):
             human_handoff_enabled=get("HUMAN_HANDOFF_ENABLED", "false").lower() in ("1", "true", "yes"),
             human_agent_phone=get("HUMAN_AGENT_PHONE"),
             human_handoff_dial_timeout_s=int(get("HUMAN_HANDOFF_DIAL_TIMEOUT_S", "30")),
-            human_handoff_announcement=env.get("HUMAN_HANDOFF_ANNOUNCEMENT", "Please hold on. I am connecting you to a human agent."),
+            human_handoff_announcement=env.get("HUMAN_HANDOFF_ANNOUNCEMENT", "Please hold on. I am connecting you to customer support."),
             human_handoff_announcement_timeout_s=float(get("HUMAN_HANDOFF_ANNOUNCEMENT_TIMEOUT_S", "8")),
             human_handoff_phrases=get("HUMAN_HANDOFF_PHRASES"),
             hold_audio_url=get("HOLD_AUDIO_URL"),

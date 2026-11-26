@@ -50,7 +50,10 @@ from app.services.audio.byte_order import to_little_endian
 from app.services.audio.formats import ENC_L16, ENC_MULAW, AudioFormat
 from app.services.sarvam.errors import SarvamConfigError, SarvamConnectionError, SarvamError
 from app.services.sarvam.realtime_protocol import RealtimeSttConfig, SttEvent
-from app.services.sarvam.realtime_stt import OPEN, SarvamRealtimeSttClient
+from app.services.sarvam.realtime_stt import CONNECTING, OPEN, RECONNECTING, SarvamRealtimeSttClient, is_retryable
+from app.services.voice.language_filter import is_allowed_transcript, parse_allowed_languages
+
+DEFAULT_ALLOWED_LANGUAGES = parse_allowed_languages("bn-IN,en-IN")
 
 if TYPE_CHECKING:
     from app.services.voice.call_manager import StreamSession
@@ -62,6 +65,11 @@ _SARVAM_ENCODING_FOR = {ENC_L16: "linear16", ENC_MULAW: "mulaw"}
 CLOSE_MARGIN_S = 1.0  # time on top of the finalize budget for flush + socket close
 
 ClientFactory = Callable[..., SarvamRealtimeSttClient]
+
+
+def default_client_factory(config: RealtimeSttConfig, api_key: SecretStr, *, on_event: Any) -> SarvamRealtimeSttClient:
+    """Live calls reconnect after a network drop (bounded by SARVAM_STT_MAX_RECONNECT_ATTEMPTS per call)."""
+    return SarvamRealtimeSttClient(config, api_key, on_event=on_event, auto_reconnect=True)
 
 
 class SarvamSttUnavailable(SarvamConnectionError):
@@ -89,9 +97,10 @@ class SarvamSttSink:
         publisher: TranscriptPublisher,
         *,
         finalize_timeout_s: float,
-        client_factory: ClientFactory = SarvamRealtimeSttClient,
+        client_factory: ClientFactory = default_client_factory,
         clock: Callable[[], float] = time.monotonic,
         track: str | None = None,
+        allowed_languages: frozenset[str] = DEFAULT_ALLOWED_LANGUAGES,
     ) -> None:
         # `track` (M5) is the neutral logical track label for a per-track sink (None = legacy stream
         # sink). `session` may be the physical StreamSession or a per-track session view with the same
@@ -121,8 +130,12 @@ class SarvamSttSink:
             "publisher_errors": 0, "first_partial_ms": None, "first_final_ms": None,
             "last_final_after_speech_end_ms": None, "finalize_ms": None, "finalize_timed_out": None,
             "finalize_timeouts": 0, "session_end_received": False, "billed_audio_s": None,
-            "close_reason": None,
+            "close_reason": None, "frames_dropped_reconnecting": 0, "dropped_other_language": 0,
+            "finals_from_partial": 0,
         }
+        self._allowed_languages = allowed_languages
+        self._good_partials: dict[int, SttEvent] = {}  # utterance_idx -> last partial in an allowed language
+        self._reconnect_pending = False
 
     @property
     def _ids(self) -> dict[str, Any]:
@@ -147,17 +160,31 @@ class SarvamSttSink:
     async def handle_frame(self, frame: AudioFrame) -> None:
         if frame.format != self._session.audio_format:
             raise SarvamConfigError("frame format differs from the stream format")
+        if not self._closed and self._client.state in (RECONNECTING, CONNECTING):
+            # Network blip: the client is opening a new Sarvam session. Drop this frame quietly instead
+            # of raising, so the audio consumer does not give up (it stops after 50 errors in a row).
+            self._note_reconnect_drop()
+            return
         if self._closed or self._send_failed or self._client.state != OPEN:
             self.m["send_errors"] += 1
             self._log_lost_once()
             raise SarvamSttUnavailable(f"Sarvam session is {self._client.state}; frame not sent")
+        if self._reconnect_pending:
+            self._reconnect_pending = False
+            logger.info("vobiz_stt_resumed_after_reconnect",
+                        extra={**self._ids, "frames_dropped_while_reconnecting": self.m["frames_dropped_reconnecting"]})
         # The ONLY inbound byte-order step: a no-op for verified little-endian L16 (and for mu-law).
         pcm = to_little_endian(frame.data, self._byte_order) if self._byte_order else frame.data
         if self._first_audio_at is None:
             self._first_audio_at = self._clock()
         try:
             await self._client.send_audio(pcm)  # PcmChunker: 3,200-byte chunks, order preserved
-        except SarvamError:
+        except SarvamError as exc:
+            if (not self._closed and getattr(self._client, "auto_reconnect", False) and is_retryable(exc)
+                    and self._client.state in (OPEN, RECONNECTING, CONNECTING)):
+                # The socket died under us; the receiver notices and reconnects. Drop, do not latch.
+                self._note_reconnect_drop()
+                return
             # Once a send fails, the audio stream to Sarvam has a gap: fail every later frame too,
             # instead of letting 4 of every 5 frames "succeed" into the chunker and hiding the loss.
             self._send_failed = True
@@ -223,6 +250,10 @@ class SarvamSttSink:
 
         if event.type not in PUBLISHED_TYPES:
             return  # pong, config.updated, unknown: internal only
+        if event.is_transcript:
+            event = self._language_policy(event)
+            if event is None:
+                return  # another language: never reaches the panel or the AI
         self._sequence += 1
         transcript = TranscriptEvent(
             call_id=self._session.call_id,
@@ -251,6 +282,44 @@ class SarvamSttSink:
                                extra={**self._ids, "error": type(exc).__name__, "count": self.m["publisher_errors"]})
 
     # --- observability ------------------------------------------------------------------------
+
+    def _language_policy(self, event: SttEvent) -> SttEvent | None:
+        """Only Bangla, Banglish and English (STT_ALLOWED_LANGUAGES) are captured.
+
+        With language_code=auto Sarvam labels every partial and final with the language it detected, and the partials
+        are written in that language's script: English as English, Bangla as Bangla. On phone audio it sometimes labels
+        English as Tamil or Malayalam. When only the FINAL of an utterance is mislabelled, the last allowed partial of
+        that utterance (what the panel already showed) becomes the final, so the line is not lost.
+        """
+        key = event.utterance_idx
+        if is_allowed_transcript(event.text, event.language, self._allowed_languages):
+            if event.is_partial:
+                if key is not None:
+                    self._good_partials[key] = event
+                    while len(self._good_partials) > 8:  # bounded: utterances whose final never came
+                        self._good_partials.pop(next(iter(self._good_partials)))
+            else:
+                self._good_partials.pop(key, None)
+            return event
+        fallback = self._good_partials.pop(key, None) if event.is_final and key is not None else None
+        if fallback is not None:
+            self.m["finals_from_partial"] += 1
+            logger.info("vobiz_stt_final_from_partial",
+                        extra={**self._ids, "utterance_idx": key, "detected_language": event.language,
+                               "used_language": fallback.language})
+            return replace(event, text=fallback.text, language=fallback.language, language_confidence=None)
+        self.m["dropped_other_language"] += 1
+        if self.m["dropped_other_language"] == 1 or self.m["dropped_other_language"] % 50 == 0:
+            logger.info("vobiz_stt_dropped_other_language",
+                        extra={**self._ids, "language": event.language, "event_type": event.type,
+                               "count": self.m["dropped_other_language"]})
+        return None
+
+    def _note_reconnect_drop(self) -> None:
+        self.m["frames_dropped_reconnecting"] += 1
+        if not self._reconnect_pending:
+            self._reconnect_pending = True
+            logger.warning("vobiz_stt_reconnecting", extra={**self._ids, "client_state": self._client.state})
 
     def _log_lost_once(self) -> None:
         if not self._lost_logged:
@@ -288,6 +357,10 @@ class SarvamSttSink:
             "session_end_received": self.m["session_end_received"],
             "billed_audio_s": self.m["billed_audio_s"],
             "close_reason": self.m["close_reason"],
+            "stt_reconnects": s.get("reconnects", 0),
+            "frames_dropped_reconnecting": self.m["frames_dropped_reconnecting"],
+            "dropped_other_language": self.m["dropped_other_language"],
+            "finals_from_partial": self.m["finals_from_partial"],
         }
 
 
@@ -299,7 +372,7 @@ class SarvamSttSinkFactory:
         settings: Settings,
         publisher: TranscriptPublisher | None = None,
         *,
-        client_factory: ClientFactory = SarvamRealtimeSttClient,
+        client_factory: ClientFactory = default_client_factory,
     ) -> None:
         if not settings.sarvam_api_key.get_secret_value():
             raise SarvamConfigError("VOBIZ_SARVAM_STT_ENABLED=true requires SARVAM_API_KEY.")
@@ -310,6 +383,7 @@ class SarvamSttSinkFactory:
         self._publisher = publisher or LoggingTranscriptPublisher()
         self._client_factory = client_factory
         self._finalize_timeout_s = settings.vobiz_sarvam_stt_finalize_timeout_s
+        self._allowed_languages = parse_allowed_languages(settings.stt_allowed_languages)
 
     @property
     def config(self) -> RealtimeSttConfig:
@@ -319,6 +393,7 @@ class SarvamSttSinkFactory:
         sink = SarvamSttSink(
             session, self._config, self._api_key, self._publisher,
             finalize_timeout_s=self._finalize_timeout_s, client_factory=self._client_factory,
+            allowed_languages=self._allowed_languages,
         )
         await sink.connect()  # one new Sarvam WebSocket for this stream only
         return sink
@@ -338,6 +413,7 @@ class SarvamSttSinkFactory:
         sink = SarvamSttSink(
             session, self._config, self._api_key, self._publisher,
             finalize_timeout_s=self._finalize_timeout_s, client_factory=self._client_factory, track=track,
+            allowed_languages=self._allowed_languages,
         )
         await sink.connect()
         return sink

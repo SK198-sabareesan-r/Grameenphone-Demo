@@ -136,9 +136,6 @@ export default function SessionSidebar({ open, onToggle, sessions, loading, erro
         >
           <Icon name="phone" />
         </button>
-        <span className="si-count" title={`${sessions.length} saved sessions`}>
-          {sessions.length}
-        </span>
       </aside>
     );
   }

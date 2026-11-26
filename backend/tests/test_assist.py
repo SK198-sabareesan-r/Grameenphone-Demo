@@ -7,7 +7,7 @@ from pathlib import Path
 from config.settings import Settings
 from copilot.repo.base import DataUnavailable
 from copilot.repo.files import FileRepo
-from copilot.services.assist import NOT_FOUND, LiveAssist
+from copilot.services.assist import NOT_FOUND_TEXTS, LiveAssist
 from copilot.services.kb_retriever import KnowledgeRetriever, KnowledgeUnavailable
 from copilot.services.kb_retriever import KnowledgeRetriever, KnowledgeUnavailable
 from copilot.services.knowledge import KnowledgeBase
@@ -127,7 +127,7 @@ def test_missing_answer_becomes_a_clear_not_found_message():
 
     entry = asyncio.run(assist.run_now(session))
 
-    assert entry["answer"] == NOT_FOUND
+    assert entry["answer"] == NOT_FOUND_TEXTS["banglish"]  # the customer speaks Banglish
     assert entry["confidence"] == "high"  # taken from the model, not invented here
 
 
