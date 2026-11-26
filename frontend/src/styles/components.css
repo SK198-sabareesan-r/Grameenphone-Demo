@@ -704,19 +704,42 @@
   margin: 0;
 }
 
-/* The Copilot panel stays in view and scrolls inside itself, so the whole panel is reachable without moving the page. */
+/* The Copilot panel stays in view. The card is a fixed frame (heading, rounded edges and border always visible) and
+   only its body scrolls, so nothing looks cut off at the top or the bottom. */
 .col-side {
   position: sticky;
   top: 12px;
-  max-height: calc(100vh - 90px);
+}
+.col-side > .shell {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 90px); /* header (about 60px) + page padding, as the session sidebar */
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.shell > .card-head {
+  flex: none;
+  padding-bottom: 8px;
+}
+.shell-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -16px; /* scrollbar at the card's edge, content keeps the card's padding */
+  padding: 0 16px 72px; /* room to scroll the last lines clear of the chat button */
 }
 
 @media (max-width: 1000px) {
   .col-side {
     position: static;
+  }
+  .col-side > .shell {
     max-height: none;
+  }
+  .shell-body {
     overflow-y: visible;
+    padding-bottom: 14px;
   }
 }
 

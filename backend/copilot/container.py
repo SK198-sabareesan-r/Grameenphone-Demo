@@ -16,6 +16,7 @@ from copilot.services.compliance import ComplianceEngine
 from copilot.services.blob_store import MemoryBlobs, S3Blobs
 from copilot.services.conversation_store import ConversationStore
 from copilot.services.dashboard import DashboardService
+from copilot.services.guide import CallGuide
 from copilot.services.hub import PanelHub
 from copilot.services.identity import IdentityService
 from copilot.services.kb_retriever import KnowledgeRetriever
@@ -51,6 +52,7 @@ class Container:
     retriever: KnowledgeRetriever
     compliance: ComplianceEngine
     nba: NbaCatalog
+    guide: CallGuide
     analyzer: TurnAnalyzer
     assist: LiveAssist
     capture: AutoCapture
@@ -107,6 +109,7 @@ def build_container(settings: Settings, *, bedrock: BedrockClient | None = None)
         retriever=retriever,
         compliance=ComplianceEngine(data / "mock" / "compliance_rules.json"),
         nba=nba,
+        guide=CallGuide(hub),
         analyzer=TurnAnalyzer(settings, bedrock, nba, hub),
         assist=assist,
         summarizer=CallSummarizer(settings, bedrock, hub, storage),

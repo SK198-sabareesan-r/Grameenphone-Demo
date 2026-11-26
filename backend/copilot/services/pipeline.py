@@ -130,6 +130,7 @@ class CallPipeline:
         if role == CUSTOMER:
             await c.location.on_customer_turn(session, text)  # asks the agent to confirm where the customer is
         await c.capture.on_turn(session, turn)  # picks up the mobile number and the location from the speech
+        await c.guide.update(session)  # first steps: confirm the number, then (network problem) the location
         if role in COMPLIANCE_SPEAKERS and c.compliance.evaluate(session.compliance, role, text):
             await c.hub.broadcast("compliance", c.compliance.view(session.compliance))
         if role in SUGGESTION_SPEAKERS and c.nba.mark_used_by_speech(session, text):

@@ -39,4 +39,5 @@ async def set_location(body: LocationRequest, request: Request) -> dict:
         raise HTTPException(
             status_code=404, detail="No known area matches that location. Pick one from the list."
         ) from None
+    await get_container(request).guide.update(session)  # ticks "Confirm where the customer is now"
     return {"current_location": status, "registered_status": session.registered_status}

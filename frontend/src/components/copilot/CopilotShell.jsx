@@ -15,11 +15,14 @@ export default function CopilotShell({ call }) {
           {live ? "Listening" : call.readOnly ? "Saved session" : call.ended ? "Call ended" : "Waiting for a call"}
         </span>
       </div>
-      <CustomerSection call={call} />
-      <AnswerSection call={call} />
-      <ActionsSection items={call.suggestions} readOnly={call.readOnly} />
-      <SignalsSection mood={call.mood} compliance={call.compliance} />
-      <p className="muted small">The agent decides. Copilot only suggests.</p>
+      {/* Only this part scrolls: the heading and the card's edges stay in view. */}
+      <div className="shell-body">
+        <CustomerSection call={call} />
+        <AnswerSection call={call} />
+        <ActionsSection items={call.suggestions} readOnly={call.readOnly} />
+        <SignalsSection mood={call.mood} compliance={call.compliance} />
+        <p className="muted small">The agent decides. Copilot only suggests.</p>
+      </div>
     </div>
   );
 }

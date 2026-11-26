@@ -76,7 +76,7 @@ async def test_analysis_result_shows_the_suggestion_and_agent_speech_marks_it_us
     await pipeline.ingest("agent", "final", "Apni boro pack ta nite paren.")
     assert pipeline.session.suggestions["nba-bigger-pack"]["used"] is True
     await settle()
-    assert events.of("suggestions")[-1][0]["used"] is True
+    assert {s["id"]: s["used"] for s in events.of("suggestions")[-1]}["nba-bigger-pack"] is True
 
 
 async def test_invalid_moods_from_the_model_keep_the_previous_values(container, fake_bedrock):
@@ -85,7 +85,7 @@ async def test_invalid_moods_from_the_model_keep_the_previous_values(container, 
     await pipeline.ingest("customer", "final", "Hello")
     await settle(lambda: pipeline.session.mood_history)
     assert pipeline.session.mood == {"customer": "neutral", "agent": "neutral", "tip": None}
-    assert pipeline.session.suggestions == {}
+    assert set(pipeline.session.suggestions) == {"step-confirm-number"}  # only the fixed first step (guide.py)
 
 
 async def test_bedrock_failure_falls_back_to_keyword_mood_without_a_suggestion(container, events, fake_bedrock):
@@ -95,7 +95,7 @@ async def test_bedrock_failure_falls_back_to_keyword_mood_without_a_suggestion(c
     await settle(lambda: pipeline.session.mood_history)
     # The customer speaks Banglish, so the fallback tip is in Banglish too.
     assert pipeline.session.mood == {"customer": "angry", "agent": "neutral", "tip": ANGRY_TIPS["banglish"]}
-    assert pipeline.session.suggestions == {}
+    assert set(pipeline.session.suggestions) == {"step-confirm-number"}  # only the fixed first step (guide.py)
     assert events.of("mood")[-1]["customer"] == "angry"
 
 

@@ -79,6 +79,8 @@ class NbaCatalog:
     def mark_used_by_speech(self, session: CallSession, text: str) -> bool:
         changed = False
         for sid, item in session.suggestions.items():
+            if sid not in self.rules:
+                continue  # a first step (guide.py) is ticked by what happens, not by words
             keywords = self.rules[sid]["used_keywords"]
             if not item["used"] and contains_any(text, keywords):
                 item["used"] = True

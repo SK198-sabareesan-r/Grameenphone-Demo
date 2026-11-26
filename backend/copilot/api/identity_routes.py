@@ -32,6 +32,7 @@ async def confirm_identity(body: IdentityRequest, request: Request) -> dict:
         card = await get_container(request).identity.confirm(session, body.mobile_number)
     except UnknownMobileNumber:
         raise HTTPException(status_code=404, detail="No customer found for that mobile number") from None
+    await get_container(request).guide.update(session)  # ticks "Confirm the mobile number"
     return {"identified": True, "card": card}
 
 
@@ -40,4 +41,5 @@ async def clear_identity(request: Request) -> dict:
     """Wrong customer picked: hide the card again."""
     session = require_session(request)
     await get_container(request).identity.clear(session)
+    await get_container(request).guide.update(session, reset_number=True)  # the number must be confirmed again
     return {"identified": False, "card": None}

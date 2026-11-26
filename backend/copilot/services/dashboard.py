@@ -12,6 +12,7 @@ from copilot.services.ticket_filter import BANGLADESH_TIME
 TREND_DAYS = 7
 MAX_TREND_DAYS = 31  # a longer date range shows the mood of its last 31 days (the numbers above it cover all of it)
 TOP_SUGGESTIONS = 5
+PROCESS_STEP = "process"  # guide.py: "confirm the number / the location" steps, shown on nearly every call
 CALM_MOODS = {"calm", "neutral"}  # shown together as "calm"
 
 
@@ -62,6 +63,8 @@ def top_suggestions(records: list[dict], titles: dict[str, str] | None = None) -
     used: Counter = Counter()
     for record in records:
         for suggestion in record.get("suggestions") or []:
+            if suggestion.get("source") == PROCESS_STEP:
+                continue  # the fixed first steps of a call are not Copilot suggestions
             title = titles.get(suggestion.get("id") or "") or suggestion.get("title") or suggestion.get("id")
             if not title:
                 continue
@@ -92,7 +95,7 @@ class DashboardService:
             trend_end = to_date or from_date
         trend_start = min(from_date or (trend_end - timedelta(days=TREND_DAYS - 1)), trend_end)
         trend_days = min(MAX_TREND_DAYS, (trend_end - trend_start).days + 1)
-        suggestions = [s for r in records for s in r.get("suggestions") or []]
+        suggestions = [s for r in records for s in r.get("suggestions") or [] if s.get("source") != PROCESS_STEP]
         shown = len(suggestions)
         accepted = sum(1 for s in suggestions if s.get("used"))
         return {

@@ -57,11 +57,16 @@ def test_panel_stream_sends_no_snapshot_when_there_is_no_call_then_live_events(c
                 pass
             return msg
 
+        steps = next_event()  # the fixed first steps: confirm the number, then (network problem) the location
+        assert steps["type"] == "suggestions"
+        assert [s["id"] for s in steps["data"]] == ["step-confirm-number", "step-confirm-location"]
+
         mood = next_event()
         assert mood == {"type": "mood", "data": {"customer": "frustrated", "agent": "neutral", "tip": "Apologise first."}}
         suggestions = next_event()
         assert suggestions["type"] == "suggestions"
-        assert [set(s) for s in suggestions["data"]] == [{"id", "title", "text", "source", "used"}]
+        assert [set(s) for s in suggestions["data"]] == [{"id", "title", "text", "source", "used"}] * 3
+        assert [s["id"] for s in suggestions["data"]] == ["step-confirm-number", "step-confirm-location", "nba-network-apology"]
 
 
 def test_reconnecting_panel_gets_a_full_snapshot(client):

@@ -24,7 +24,9 @@ function Centres({ centres }) {
   );
 }
 
-// The next best action, shown under the answer. Nothing is drawn until there is one.
+// The next best action, shown under the answer. Nothing is drawn until there is one. The fixed first steps of a
+// call (confirm the number, then the location for a network problem) always come first; they are ticked "Done"
+// by the backend when the number or the location is confirmed.
 export default function ActionsSection({ items, readOnly = false }) {
   if (items.length === 0) return null;
   return (
@@ -39,7 +41,7 @@ export default function ActionsSection({ items, readOnly = false }) {
             {s.centres && <Centres centres={s.centres} />}
           </div>
           {s.used ? (
-            <span className="pill pill-ok">Used</span>
+            <span className="pill pill-ok">{s.source === "process" ? "Done" : "Used"}</span>
           ) : readOnly ? (
             <span className="pill">Not used</span>
           ) : (
